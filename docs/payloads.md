@@ -1,3 +1,4 @@
+```json
 {
   "evento": "NOVO_PEDIDO",
   "detalhes_pedido": {
