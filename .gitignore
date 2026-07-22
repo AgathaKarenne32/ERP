@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+*.db
+
+# Node / Angular
+node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/src/app/core/api/
+
+# Env / secrets
+.env
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
