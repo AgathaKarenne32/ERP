@@ -11,7 +11,8 @@ __pycache__/
 node_modules/
 frontend/dist/
 frontend/.angular/
-frontend/src/app/core/api/
+# NOTE: frontend/src/app/core/api/ is generated from the OpenAPI spec
+# (npm run gen:api) but committed so the app builds without regeneration.
 
 # Env / secrets
 .env
