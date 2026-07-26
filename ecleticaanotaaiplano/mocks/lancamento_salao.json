@@ -1,0 +1,13 @@
+{
+  "id_comanda": 4092,
+  "origem_pedido": "SALAO",
+  "id_operador": 12,
+  "itens": [
+    {
+      "id_produto": 14,
+      "quantidade": 3,
+      "preco_aplicado": 12.00,
+      "observacoes": "1 sem gelo"
+    }
+  ]
+}
