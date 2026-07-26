@@ -1,0 +1,8 @@
+{
+  "status": "sucesso",
+  "mensagem": "Itens adicionados à comanda com sucesso.",
+  "dados": {
+    "id_comanda": 4092,
+    "novo_total": 145.50
+  }
+}
