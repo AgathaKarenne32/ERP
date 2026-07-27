@@ -1,3 +1,4 @@
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -7,6 +8,7 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
     ecletica_api_url: str = "http://ecletica-api:8000"
+    internal_api_token: str = Field(default="change-me-internal-token", alias="INTERNAL_API_TOKEN")
 
     model_config = SettingsConfigDict(env_prefix="ANOTAAI_")
 

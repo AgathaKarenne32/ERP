@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from .core.db import init_db
-from .routers import auth, clientes, insumos, produtos
+from .routers import auth, clientes, insumos, produtos, vendas
 from .seed import seed_demo_data
 
 
@@ -26,3 +26,4 @@ app.include_router(auth.router)
 app.include_router(produtos.router)
 app.include_router(insumos.router)
 app.include_router(clientes.router)
+app.include_router(vendas.router)
