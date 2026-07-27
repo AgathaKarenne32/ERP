@@ -8,7 +8,13 @@ from ..core.db import get_session
 from ..core.deps import get_current_loja_id, require_roles
 from ..core.ecletica_client import solicitar_baixa_estoque
 from ..models import Comanda, ItemComanda, PapelOperador, StatusComanda, TicketProducao
-from ..schemas import ComandaCreate, ComandaOut, ItemComandaCreate, ItemComandaOut
+from ..schemas import (
+    ComandaCancelarRequest,
+    ComandaCreate,
+    ComandaOut,
+    ItemComandaCreate,
+    ItemComandaOut,
+)
 
 router = APIRouter(prefix="/comandas", tags=["comandas"])
 
@@ -78,6 +84,8 @@ def fechar_comanda(
     comanda = session.get(Comanda, comanda_id)
     if not comanda or comanda.id_loja != id_loja:
         raise HTTPException(status_code=404, detail="Comanda não encontrada")
+    if comanda.status != StatusComanda.ABERTA:
+        raise HTTPException(status_code=409, detail="Só é possível fechar uma comanda aberta")
 
     itens = session.exec(
         select(ItemComanda).where(ItemComanda.id_comanda == comanda_id)
@@ -99,6 +107,33 @@ def fechar_comanda(
 
     comanda.status = StatusComanda.PAGA
     comanda.fechada_em = datetime.now(timezone.utc)
+    session.add(comanda)
+    session.commit()
+    session.refresh(comanda)
+    return comanda
+
+
+@router.patch("/{comanda_id}/cancelar", response_model=ComandaOut)
+def cancelar_comanda(
+    comanda_id: uuid.UUID,
+    payload: ComandaCancelarRequest,
+    session: Session = Depends(get_session),
+    id_loja: uuid.UUID = Depends(get_current_loja_id),
+    _operador=Depends(
+        require_roles(PapelOperador.CAIXA, PapelOperador.ADMIN, PapelOperador.GERENTE)
+    ),
+) -> Comanda:
+    """RN03 (extensão): cancela uma comanda aberta, sem baixa de estoque (nada
+    foi vendido). Comanda já paga ou já cancelada não pode ser cancelada de novo."""
+    comanda = session.get(Comanda, comanda_id)
+    if not comanda or comanda.id_loja != id_loja:
+        raise HTTPException(status_code=404, detail="Comanda não encontrada")
+    if comanda.status != StatusComanda.ABERTA:
+        raise HTTPException(status_code=409, detail="Só é possível cancelar uma comanda aberta")
+
+    comanda.status = StatusComanda.CANCELADA
+    comanda.fechada_em = datetime.now(timezone.utc)
+    comanda.motivo_cancelamento = payload.motivo
     session.add(comanda)
     session.commit()
     session.refresh(comanda)
