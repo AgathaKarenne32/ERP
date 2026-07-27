@@ -1,9 +1,12 @@
+import logging
 import uuid
 
 import httpx
 from fastapi import HTTPException, status
 
 from .config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def solicitar_baixa_estoque(
@@ -45,3 +48,32 @@ def solicitar_baixa_estoque(
             detail=resposta.json().get("detail", "Estoque insuficiente."),
         )
     resposta.raise_for_status()
+
+
+def solicitar_credito_fidelidade(
+    id_loja: uuid.UUID,
+    id_cliente: uuid.UUID,
+    valor_gasto: float,
+    referencia: str,
+) -> None:
+    """RN05: credita pontos de fidelidade na ecletica-api após pagamento
+    confirmado. Diferente da baixa de estoque, uma falha aqui NÃO deve
+    impedir o fechamento da comanda — a venda já está confirmada; só
+    registramos o aviso e seguimos."""
+    payload = {
+        "id_loja": str(id_loja),
+        "valor_gasto": valor_gasto,
+        "referencia": referencia,
+    }
+    headers = {"X-Internal-Token": settings.internal_api_token}
+
+    try:
+        resposta = httpx.post(
+            f"{settings.ecletica_api_url}/clientes/{id_cliente}/creditar-pontos",
+            json=payload,
+            headers=headers,
+            timeout=5.0,
+        )
+        resposta.raise_for_status()
+    except httpx.HTTPError as exc:
+        logger.warning("Falha ao creditar pontos de fidelidade para %s: %s", id_cliente, exc)

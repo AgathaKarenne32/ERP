@@ -6,7 +6,7 @@ from sqlmodel import Session, select
 
 from ..core.db import get_session
 from ..core.deps import get_current_loja_id, require_roles
-from ..core.ecletica_client import solicitar_baixa_estoque
+from ..core.ecletica_client import solicitar_baixa_estoque, solicitar_credito_fidelidade
 from ..models import Comanda, ItemComanda, PapelOperador, StatusComanda, TicketProducao
 from ..schemas import (
     ComandaCancelarRequest,
@@ -137,6 +137,17 @@ def fechar_comanda(
     session.add(comanda)
     session.commit()
     session.refresh(comanda)
+
+    # RN05: credita fidelidade só depois do pagamento confirmado, e só se
+    # houver cliente vinculado. Falha aqui não desfaz o pagamento.
+    if comanda.id_cliente:
+        solicitar_credito_fidelidade(
+            id_loja=id_loja,
+            id_cliente=comanda.id_cliente,
+            valor_gasto=comanda.valor_total,
+            referencia=str(comanda_id),
+        )
+
     return comanda
 
 
