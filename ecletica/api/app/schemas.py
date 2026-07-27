@@ -63,3 +63,14 @@ class ClienteOut(BaseModel):
     nome: str
     cpf: str
     pontos_fidelidade: int
+
+
+class ItemVendaBaixa(BaseModel):
+    id_produto: uuid.UUID
+    quantidade: float
+
+
+class BaixaEstoqueRequest(BaseModel):
+    id_loja: uuid.UUID
+    referencia: str | None = None
+    itens: list[ItemVendaBaixa]

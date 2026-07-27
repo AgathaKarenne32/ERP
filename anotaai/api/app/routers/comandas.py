@@ -6,6 +6,7 @@ from sqlmodel import Session, select
 
 from ..core.db import get_session
 from ..core.deps import get_current_loja_id, require_roles
+from ..core.ecletica_client import solicitar_baixa_estoque
 from ..models import Comanda, ItemComanda, PapelOperador, StatusComanda, TicketProducao
 from ..schemas import ComandaCreate, ComandaOut, ItemComandaCreate, ItemComandaOut
 
@@ -77,6 +78,22 @@ def fechar_comanda(
     comanda = session.get(Comanda, comanda_id)
     if not comanda or comanda.id_loja != id_loja:
         raise HTTPException(status_code=404, detail="Comanda não encontrada")
+
+    itens = session.exec(
+        select(ItemComanda).where(ItemComanda.id_comanda == comanda_id)
+    ).all()
+    itens_baixa = [
+        {"id_produto": str(item.id_produto), "quantidade": item.quantidade}
+        for item in itens
+    ]
+
+    # RN01/RN02: dá baixa no estoque na ecletica-api antes de confirmar o pagamento.
+    # Se faltar insumo, isto levanta HTTPException(409) e a comanda não fecha.
+    solicitar_baixa_estoque(
+        id_loja=id_loja,
+        itens=itens_baixa,
+        referencia=str(comanda_id),
+    )
 
     comanda.status = StatusComanda.PAGA
     comanda.fechada_em = datetime.now(timezone.utc)
