@@ -87,12 +87,14 @@ def fechar_comanda(
         for item in itens
     ]
 
-    # RN01/RN02: dá baixa no estoque na ecletica-api antes de confirmar o pagamento.
-    # Se faltar insumo, isto levanta HTTPException(409) e a comanda não fecha.
+    # RN01/RN02: dá baixa no estoque na ecletica-api antes de confirmar o pagamento,
+    # e soma o valor da venda no caixa aberto (se houver). Se faltar insumo, isto
+    # levanta HTTPException(409) e a comanda não fecha.
     solicitar_baixa_estoque(
         id_loja=id_loja,
         itens=itens_baixa,
         referencia=str(comanda_id),
+        valor_total=comanda.valor_total,
     )
 
     comanda.status = StatusComanda.PAGA

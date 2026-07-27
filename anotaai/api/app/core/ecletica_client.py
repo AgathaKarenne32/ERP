@@ -10,8 +10,10 @@ def solicitar_baixa_estoque(
     id_loja: uuid.UUID,
     itens: list[dict],
     referencia: str,
+    valor_total: float,
 ) -> None:
-    """Chama a ecletica-api para abater o estoque (RN01/RN02) ao fechar uma comanda.
+    """Chama a ecletica-api para abater o estoque (RN01/RN02) e somar o valor
+    da venda no caixa aberto, ao fechar uma comanda.
 
     Fase 1: chamada HTTP síncrona. Fase 3: substituída por publicação em fila,
     mantendo a mesma responsabilidade e contrato de dados.
@@ -19,6 +21,7 @@ def solicitar_baixa_estoque(
     payload = {
         "id_loja": str(id_loja),
         "referencia": referencia,
+        "valor_total": valor_total,
         "itens": itens,
     }
     headers = {"X-Internal-Token": settings.internal_api_token}
