@@ -3,6 +3,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr
 
+from .models import TipoMovimentoEstoque
+
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -85,3 +87,20 @@ class CaixaOut(BaseModel):
     aberto_em: datetime
     fechado_em: datetime | None
     valor_total: float
+
+
+class MovimentoEstoqueCreate(BaseModel):
+    tipo: TipoMovimentoEstoque
+    quantidade: float
+    referencia: str | None = None
+
+
+class MovimentoEstoqueOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    id_insumo: uuid.UUID
+    tipo: TipoMovimentoEstoque
+    quantidade: float
+    referencia: str | None
+    criado_em: datetime
