@@ -68,6 +68,12 @@ class ClienteOut(BaseModel):
     pontos_fidelidade: int
 
 
+class CreditarPontosRequest(BaseModel):
+    id_loja: uuid.UUID
+    valor_gasto: float
+    referencia: str | None = None
+
+
 class ItemVendaBaixa(BaseModel):
     id_produto: uuid.UUID
     quantidade: float
