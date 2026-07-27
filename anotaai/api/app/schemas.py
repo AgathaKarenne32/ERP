@@ -18,6 +18,7 @@ class TokenResponse(BaseModel):
 
 class ComandaCreate(BaseModel):
     identificador: str
+    id_cliente: uuid.UUID | None = None
 
 
 class ComandaOut(BaseModel):
@@ -25,6 +26,7 @@ class ComandaOut(BaseModel):
 
     id: uuid.UUID
     identificador: str
+    id_cliente: uuid.UUID | None
     status: StatusComanda
     valor_total: float
     aberta_em: datetime
@@ -33,6 +35,10 @@ class ComandaOut(BaseModel):
 
 class ComandaCancelarRequest(BaseModel):
     motivo: str
+
+
+class ComandaVincularClienteRequest(BaseModel):
+    id_cliente: uuid.UUID
 
 
 class ItemComandaCreate(BaseModel):

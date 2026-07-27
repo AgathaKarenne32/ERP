@@ -12,6 +12,7 @@ from ..schemas import (
     ComandaCancelarRequest,
     ComandaCreate,
     ComandaOut,
+    ComandaVincularClienteRequest,
     ItemComandaCreate,
     ItemComandaOut,
 )
@@ -25,7 +26,11 @@ def abrir_comanda(
     session: Session = Depends(get_session),
     id_loja: uuid.UUID = Depends(get_current_loja_id),
 ) -> Comanda:
-    comanda = Comanda(id_loja=id_loja, identificador=payload.identificador)
+    comanda = Comanda(
+        id_loja=id_loja,
+        identificador=payload.identificador,
+        id_cliente=payload.id_cliente,
+    )
     session.add(comanda)
     session.commit()
     session.refresh(comanda)
@@ -38,6 +43,28 @@ def listar_comandas(
     id_loja: uuid.UUID = Depends(get_current_loja_id),
 ) -> list[Comanda]:
     return list(session.exec(select(Comanda).where(Comanda.id_loja == id_loja)).all())
+
+
+@router.patch("/{comanda_id}/cliente", response_model=ComandaOut)
+def vincular_cliente(
+    comanda_id: uuid.UUID,
+    payload: ComandaVincularClienteRequest,
+    session: Session = Depends(get_session),
+    id_loja: uuid.UUID = Depends(get_current_loja_id),
+) -> Comanda:
+    """Vincula (ou troca) o cliente de uma comanda aberta — pré-requisito
+    pra fidelidade (RN05), que credita pontos com base nesse vínculo."""
+    comanda = session.get(Comanda, comanda_id)
+    if not comanda or comanda.id_loja != id_loja:
+        raise HTTPException(status_code=404, detail="Comanda não encontrada")
+    if comanda.status != StatusComanda.ABERTA:
+        raise HTTPException(status_code=409, detail="Só é possível vincular cliente numa comanda aberta")
+
+    comanda.id_cliente = payload.id_cliente
+    session.add(comanda)
+    session.commit()
+    session.refresh(comanda)
+    return comanda
 
 
 @router.post("/{comanda_id}/itens", response_model=ItemComandaOut, status_code=201)

@@ -43,6 +43,7 @@ class Comanda(SQLModel, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     id_loja: uuid.UUID = Field(index=True)
+    id_cliente: uuid.UUID | None = Field(default=None, index=True)  # referência solta ao Cliente da ecletica-api
     identificador: str  # Ex: 'MESA 04', 'SENHA 102'
     status: StatusComanda = Field(default=StatusComanda.ABERTA)
     valor_total: float = Field(default=0)
