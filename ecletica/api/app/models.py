@@ -1,0 +1,110 @@
+import uuid
+from datetime import datetime, timezone
+from enum import Enum
+
+from sqlmodel import Field, SQLModel
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+class PapelUsuario(str, Enum):
+    ADMIN = "ADMIN"
+    GERENTE = "GERENTE"
+    CAIXA = "CAIXA"
+    COZINHA = "COZINHA"
+    GARCOM = "GARCOM"
+
+
+class Loja(SQLModel, table=True):
+    __tablename__ = "loja"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    nome: str
+    cnpj: str = Field(unique=True)
+    ativa: bool = Field(default=True)
+    criado_em: datetime = Field(default_factory=_now)
+
+
+class Usuario(SQLModel, table=True):
+    __tablename__ = "usuario"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    id_loja: uuid.UUID = Field(foreign_key="loja.id", index=True)
+    nome: str
+    email: str = Field(unique=True, index=True)
+    senha_hash: str
+    papel: PapelUsuario = Field(default=PapelUsuario.CAIXA)
+    ativo: bool = Field(default=True)
+    criado_em: datetime = Field(default_factory=_now)
+
+
+class Insumo(SQLModel, table=True):
+    __tablename__ = "insumo"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    id_loja: uuid.UUID = Field(foreign_key="loja.id", index=True)
+    nome: str
+    unidade_medida: str  # Ex: 'L', 'KG', 'UN'
+    custo_unitario: float
+    qtd_estoque: float = Field(default=0)
+
+
+class Produto(SQLModel, table=True):
+    __tablename__ = "produto"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    id_loja: uuid.UUID = Field(foreign_key="loja.id", index=True)
+    nome: str
+    preco_venda: float
+    categoria: str | None = None
+    ativo_venda: bool = Field(default=True)
+
+
+class FichaTecnica(SQLModel, table=True):
+    """Relacionamento N:N entre Produto e Insumo (RN01 - baixa automática de estoque)."""
+
+    __tablename__ = "ficha_tecnica"
+
+    id_produto: uuid.UUID = Field(foreign_key="produto.id", primary_key=True)
+    id_insumo: uuid.UUID = Field(foreign_key="insumo.id", primary_key=True)
+    qtd_utilizada: float
+
+
+class Cliente(SQLModel, table=True):
+    __tablename__ = "cliente"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    id_loja: uuid.UUID = Field(foreign_key="loja.id", index=True)
+    nome: str
+    cpf: str = Field(index=True)
+    pontos_fidelidade: int = Field(default=0)
+
+
+class TipoMovimentoEstoque(str, Enum):
+    ENTRADA = "ENTRADA"
+    SAIDA_VENDA = "SAIDA_VENDA"
+    AJUSTE = "AJUSTE"
+
+
+class MovimentoEstoque(SQLModel, table=True):
+    __tablename__ = "movimento_estoque"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    id_loja: uuid.UUID = Field(foreign_key="loja.id", index=True)
+    id_insumo: uuid.UUID = Field(foreign_key="insumo.id", index=True)
+    tipo: TipoMovimentoEstoque
+    quantidade: float
+    referencia: str | None = None
+    criado_em: datetime = Field(default_factory=_now)
+
+
+class FechamentoCaixa(SQLModel, table=True):
+    __tablename__ = "fechamento_caixa"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    id_loja: uuid.UUID = Field(foreign_key="loja.id", index=True)
+    aberto_em: datetime
+    fechado_em: datetime | None = None
+    valor_total: float = Field(default=0)
