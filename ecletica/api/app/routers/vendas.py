@@ -5,7 +5,7 @@ from sqlmodel import Session, select
 
 from ..core.db import get_session
 from ..core.deps import verify_internal_token
-from ..models import FichaTecnica, Insumo, MovimentoEstoque, TipoMovimentoEstoque
+from ..models import FechamentoCaixa, FichaTecnica, Insumo, MovimentoEstoque, TipoMovimentoEstoque
 from ..schemas import BaixaEstoqueRequest
 
 router = APIRouter(prefix="/vendas", tags=["vendas"])
@@ -21,7 +21,8 @@ def baixar_estoque(
     session: Session = Depends(get_session),
 ) -> None:
     """RN01: abate o estoque dos insumos conforme a ficha técnica de cada produto vendido.
-    RN02: bloqueia toda a venda (nenhum insumo é descontado) se faltar estoque de algum."""
+    RN02: bloqueia toda a venda (nenhum insumo é descontado) se faltar estoque de algum.
+    Se houver um caixa aberto para a loja, soma o valor da venda nele."""
     consumo_por_insumo: dict[uuid.UUID, float] = {}
 
     for item in payload.itens:
@@ -34,42 +35,50 @@ def baixar_estoque(
                 + ficha.qtd_utilizada * item.quantidade
             )
 
-    if not consumo_por_insumo:
-        return
+    if consumo_por_insumo:
+        insumos = {
+            insumo.id: insumo
+            for insumo in session.exec(
+                select(Insumo)
+                .where(Insumo.id_loja == payload.id_loja)
+                .where(Insumo.id.in_(consumo_por_insumo.keys()))
+                .with_for_update()
+            ).all()
+        }
 
-    insumos = {
-        insumo.id: insumo
-        for insumo in session.exec(
-            select(Insumo)
-            .where(Insumo.id_loja == payload.id_loja)
-            .where(Insumo.id.in_(consumo_por_insumo.keys()))
-            .with_for_update()
-        ).all()
-    }
-
-    faltantes = [
-        str(id_insumo)
-        for id_insumo, qtd_necessaria in consumo_por_insumo.items()
-        if insumos.get(id_insumo) is None or insumos[id_insumo].qtd_estoque < qtd_necessaria
-    ]
-    if faltantes:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Estoque insuficiente para os insumos: {', '.join(faltantes)}",
-        )
-
-    for id_insumo, qtd_necessaria in consumo_por_insumo.items():
-        insumo = insumos[id_insumo]
-        insumo.qtd_estoque -= qtd_necessaria
-        session.add(insumo)
-        session.add(
-            MovimentoEstoque(
-                id_loja=payload.id_loja,
-                id_insumo=id_insumo,
-                tipo=TipoMovimentoEstoque.SAIDA_VENDA,
-                quantidade=qtd_necessaria,
-                referencia=payload.referencia,
+        faltantes = [
+            str(id_insumo)
+            for id_insumo, qtd_necessaria in consumo_por_insumo.items()
+            if insumos.get(id_insumo) is None or insumos[id_insumo].qtd_estoque < qtd_necessaria
+        ]
+        if faltantes:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Estoque insuficiente para os insumos: {', '.join(faltantes)}",
             )
-        )
+
+        for id_insumo, qtd_necessaria in consumo_por_insumo.items():
+            insumo = insumos[id_insumo]
+            insumo.qtd_estoque -= qtd_necessaria
+            session.add(insumo)
+            session.add(
+                MovimentoEstoque(
+                    id_loja=payload.id_loja,
+                    id_insumo=id_insumo,
+                    tipo=TipoMovimentoEstoque.SAIDA_VENDA,
+                    quantidade=qtd_necessaria,
+                    referencia=payload.referencia,
+                )
+            )
+
+    caixa_aberto = session.exec(
+        select(FechamentoCaixa)
+        .where(FechamentoCaixa.id_loja == payload.id_loja)
+        .where(FechamentoCaixa.fechado_em.is_(None))
+        .with_for_update()
+    ).first()
+    if caixa_aberto:
+        caixa_aberto.valor_total += payload.valor_total
+        session.add(caixa_aberto)
 
     session.commit()

@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr
 
@@ -73,4 +74,14 @@ class ItemVendaBaixa(BaseModel):
 class BaixaEstoqueRequest(BaseModel):
     id_loja: uuid.UUID
     referencia: str | None = None
+    valor_total: float = 0
     itens: list[ItemVendaBaixa]
+
+
+class CaixaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    aberto_em: datetime
+    fechado_em: datetime | None
+    valor_total: float
