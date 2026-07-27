@@ -28,6 +28,11 @@ class ComandaOut(BaseModel):
     status: StatusComanda
     valor_total: float
     aberta_em: datetime
+    motivo_cancelamento: str | None = None
+
+
+class ComandaCancelarRequest(BaseModel):
+    motivo: str
 
 
 class ItemComandaCreate(BaseModel):
