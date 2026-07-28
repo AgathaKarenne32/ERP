@@ -68,3 +68,17 @@ class TicketProducaoOut(BaseModel):
     id: uuid.UUID
     id_item_comanda: uuid.UUID
     status_producao: StatusProducao
+
+
+class RelatorioVendasOut(BaseModel):
+    periodo_inicio: datetime | None
+    periodo_fim: datetime | None
+    total_vendas: float
+    quantidade_comandas: int
+    ticket_medio: float
+
+
+class ProdutoMaisVendidoOut(BaseModel):
+    nome_produto: str
+    quantidade_total: float
+    valor_total: float
