@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from .core.db import init_db
-from .routers import auth, comandas, kds
+from .routers import auth, comandas, kds, relatorios
 from .seed import seed_demo_data
 
 
@@ -25,3 +25,4 @@ def health() -> dict:
 app.include_router(auth.router)
 app.include_router(comandas.router)
 app.include_router(kds.router)
+app.include_router(relatorios.router)
