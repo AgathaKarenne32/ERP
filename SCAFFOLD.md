@@ -35,14 +35,6 @@ usuário de demonstração:
 └── docker-compose.yml
 ```
 
-## O que ainda falta (próximas fases do plano)
-
-- Fase 1: regras completas de baixa de estoque (RN01/RN02) ligando `anotaai-api` → `ecletica-api`.
-- Fase 2: KDS em tempo real via WebSocket/Redis Pub/Sub (hoje o KDS é só polling em `/kds/fila`).
-- Fase 3: cardápio digital (QR), bot WhatsApp real e integração iFood (o worker só tem stubs).
-- Fase 4: fidelidade (RN05) e sincronização de `Loja` entre os dois serviços.
-- Fase 5: deploy Kubernetes, observabilidade, backups.
-
 ## Gerando a primeira migração Alembic
 
 Com o Postgres no ar (`docker compose up postgres -d`):
