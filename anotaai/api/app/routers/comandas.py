@@ -15,6 +15,7 @@ from ..schemas import (
     ComandaVincularClienteRequest,
     ItemComandaCreate,
     ItemComandaOut,
+    TransferirItensRequest,
 )
 
 router = APIRouter(prefix="/comandas", tags=["comandas"])
@@ -96,6 +97,58 @@ def adicionar_item(
     session.commit()
 
     return item
+
+
+@router.post("/{comanda_id}/transferir-itens", response_model=ComandaOut)
+def transferir_itens(
+    comanda_id: uuid.UUID,
+    payload: TransferirItensRequest,
+    session: Session = Depends(get_session),
+    id_loja: uuid.UUID = Depends(get_current_loja_id),
+) -> Comanda:
+    """RF05: move itens de uma comanda pra outra (ex: cliente trocou de mesa,
+    ou fundir contas no fechamento). As duas comandas precisam estar ABERTA."""
+    origem = session.get(Comanda, comanda_id)
+    if not origem or origem.id_loja != id_loja:
+        raise HTTPException(status_code=404, detail="Comanda de origem não encontrada")
+    if origem.status != StatusComanda.ABERTA:
+        raise HTTPException(status_code=409, detail="Só é possível transferir itens de uma comanda aberta")
+
+    if payload.id_comanda_destino == origem.id:
+        raise HTTPException(status_code=400, detail="Comanda de destino deve ser diferente da origem")
+
+    destino = session.get(Comanda, payload.id_comanda_destino)
+    if not destino or destino.id_loja != id_loja:
+        raise HTTPException(status_code=404, detail="Comanda de destino não encontrada")
+    if destino.status != StatusComanda.ABERTA:
+        raise HTTPException(status_code=409, detail="Só é possível transferir itens para uma comanda aberta")
+
+    itens = session.exec(
+        select(ItemComanda)
+        .where(ItemComanda.id_comanda == comanda_id)
+        .where(ItemComanda.id.in_(payload.id_itens))
+    ).all()
+
+    encontrados = {item.id for item in itens}
+    faltantes = set(payload.id_itens) - encontrados
+    if faltantes:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Itens não encontrados na comanda de origem: {', '.join(str(i) for i in faltantes)}",
+        )
+
+    for item in itens:
+        valor_item = item.quantidade * item.preco_aplicado
+        item.id_comanda = destino.id
+        origem.valor_total -= valor_item
+        destino.valor_total += valor_item
+        session.add(item)
+
+    session.add(origem)
+    session.add(destino)
+    session.commit()
+    session.refresh(origem)
+    return origem
 
 
 @router.patch("/{comanda_id}/fechar", response_model=ComandaOut)
