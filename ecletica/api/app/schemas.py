@@ -16,6 +16,15 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class LojaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    nome: str
+    cnpj: str
+    ativa: bool
+
+
 class ProdutoCreate(BaseModel):
     nome: str
     preco_venda: float
