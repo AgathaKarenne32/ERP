@@ -41,6 +41,11 @@ class ComandaVincularClienteRequest(BaseModel):
     id_cliente: uuid.UUID
 
 
+class TransferirItensRequest(BaseModel):
+    id_comanda_destino: uuid.UUID
+    id_itens: list[uuid.UUID]
+
+
 class ItemComandaCreate(BaseModel):
     id_produto: uuid.UUID
     nome_produto: str
