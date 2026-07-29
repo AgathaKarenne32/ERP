@@ -5,7 +5,6 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from .core.db import init_db
 from .core.logging_config import configurar_logging
 from .routers import auth, caixa, clientes, insumos, lojas, produtos, vendas
 from .seed import seed_demo_data
@@ -16,7 +15,6 @@ logger = logging.getLogger("app.access")
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    init_db()
     seed_demo_data()
     yield
 
