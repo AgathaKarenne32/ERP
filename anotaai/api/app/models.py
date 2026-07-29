@@ -38,6 +38,12 @@ class StatusComanda(str, Enum):
     CANCELADA = "CANCELADA"
 
 
+class OrigemPedido(str, Enum):
+    SALAO = "SALAO"
+    IFOOD = "IFOOD"
+    WHATSAPP = "WHATSAPP"
+
+
 class Comanda(SQLModel, table=True):
     __tablename__ = "comanda"
 
@@ -50,12 +56,8 @@ class Comanda(SQLModel, table=True):
     aberta_em: datetime = Field(default_factory=_now)
     fechada_em: datetime | None = None
     motivo_cancelamento: str | None = None
-
-
-class OrigemPedido(str, Enum):
-    SALAO = "SALAO"
-    IFOOD = "IFOOD"
-    WHATSAPP = "WHATSAPP"
+    origem_externa: OrigemPedido | None = Field(default=None, index=True)
+    id_referencia_externa: str | None = Field(default=None, index=True)
 
 
 class ItemComanda(SQLModel, table=True):
