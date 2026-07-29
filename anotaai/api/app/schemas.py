@@ -87,3 +87,17 @@ class ProdutoMaisVendidoOut(BaseModel):
     nome_produto: str
     quantidade_total: float
     valor_total: float
+
+
+class ItemIngestaoExterna(BaseModel):
+    id_produto: uuid.UUID
+    nome_produto: str
+    quantidade: float
+    preco_aplicado: float
+    observacoes: str | None = None
+
+
+class IngestaoExternaRequest(BaseModel):
+    origem: OrigemPedido
+    id_referencia_externa: str
+    itens: list[ItemIngestaoExterna]
