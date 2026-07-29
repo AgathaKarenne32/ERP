@@ -7,6 +7,7 @@ from sqlmodel import Session, select
 from ..core.db import get_session
 from ..core.deps import get_current_loja_id, require_roles, verify_internal_token
 from ..core.ecletica_client import solicitar_baixa_estoque, solicitar_credito_fidelidade
+from ..core.realtime import publicar_atualizacao_kds
 from ..models import Comanda, ItemComanda, Operador, PapelOperador, StatusComanda, TicketProducao
 from ..schemas import (
     ComandaCancelarRequest,
@@ -16,6 +17,7 @@ from ..schemas import (
     IngestaoExternaRequest,
     ItemComandaCreate,
     ItemComandaOut,
+    TicketProducaoOut,
     TransferirItensRequest,
 )
 
@@ -74,6 +76,7 @@ def ingestao_externa(
     comanda = Comanda(id_loja=id_loja, identificador=identificador)
     session.add(comanda)
 
+    tickets_novos: list[TicketProducao] = []
     for item_payload in payload.itens:
         item = ItemComanda(
             id_loja=id_loja,
@@ -86,9 +89,17 @@ def ingestao_externa(
 
         ticket = TicketProducao(id_loja=id_loja, id_item_comanda=item.id)
         session.add(ticket)
+        tickets_novos.append(ticket)
 
     session.commit()
     session.refresh(comanda)
+
+    for ticket in tickets_novos:
+        session.refresh(ticket)
+        publicar_atualizacao_kds(
+            id_loja, TicketProducaoOut.model_validate(ticket).model_dump(mode="json")
+        )
+
     return comanda
 
 
@@ -137,10 +148,15 @@ def adicionar_item(
     session.commit()
     session.refresh(item)
 
-    # Cria o ticket de produção correspondente para o KDS.
+    # Cria o ticket de produção correspondente para o KDS e avisa em tempo real.
     ticket = TicketProducao(id_loja=id_loja, id_item_comanda=item.id)
     session.add(ticket)
     session.commit()
+    session.refresh(ticket)
+
+    publicar_atualizacao_kds(
+        id_loja, TicketProducaoOut.model_validate(ticket).model_dump(mode="json")
+    )
 
     return item
 
