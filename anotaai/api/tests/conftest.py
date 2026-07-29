@@ -1,0 +1,81 @@
+import uuid
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel.pool import StaticPool
+
+from app.core.db import get_session
+from app.core.security import create_access_token, hash_password
+from app.main import app
+from app.models import Operador, PapelOperador
+
+
+@pytest.fixture(name="session")
+def session_fixture():
+    engine = create_engine(
+        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        yield session
+
+
+@pytest.fixture(autouse=True)
+def _sem_chamadas_externas(monkeypatch):
+    """Testes de unidade da anotaai-api não devem depender da ecletica-api
+    nem do Redis estarem no ar — essas integrações viram no-op aqui."""
+    monkeypatch.setattr("app.routers.comandas.solicitar_baixa_estoque", lambda **kwargs: None)
+    monkeypatch.setattr("app.routers.comandas.solicitar_credito_fidelidade", lambda **kwargs: None)
+    monkeypatch.setattr("app.routers.comandas.publicar_atualizacao_kds", lambda *a, **k: None)
+    monkeypatch.setattr("app.routers.kds.publicar_atualizacao_kds", lambda *a, **k: None)
+
+
+@pytest.fixture(name="client")
+def client_fixture(session: Session):
+    def get_session_override():
+        return session
+
+    app.dependency_overrides[get_session] = get_session_override
+    client = TestClient(app)
+    yield client
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def id_loja() -> uuid.UUID:
+    return uuid.uuid4()
+
+
+def _criar_operador(session: Session, id_loja: uuid.UUID, papel: PapelOperador, email: str) -> Operador:
+    operador = Operador(
+        id_loja=id_loja,
+        nome=f"{papel.value} Teste",
+        email=email,
+        senha_hash=hash_password("senha123"),
+        papel=papel,
+    )
+    session.add(operador)
+    session.commit()
+    session.refresh(operador)
+    return operador
+
+
+def _headers(operador: Operador) -> dict:
+    token = create_access_token(
+        subject=str(operador.id),
+        extra_claims={"papel": operador.papel.value, "id_loja": str(operador.id_loja)},
+    )
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def headers_caixa(session: Session, id_loja: uuid.UUID) -> dict:
+    operador = _criar_operador(session, id_loja, PapelOperador.CAIXA, "caixa@teste.local")
+    return _headers(operador)
+
+
+@pytest.fixture
+def headers_garcom(session: Session, id_loja: uuid.UUID) -> dict:
+    operador = _criar_operador(session, id_loja, PapelOperador.GARCOM, "garcom@teste.local")
+    return _headers(operador)
