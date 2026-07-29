@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlmodel import Session, select
 
 from ..core.db import get_session
@@ -52,11 +52,12 @@ def listar_comandas(
 @router.post(
     "/ingestao-externa",
     response_model=ComandaOut,
-    status_code=201,
+    status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(verify_internal_token)],
 )
 def ingestao_externa(
     payload: IngestaoExternaRequest,
+    response: Response,
     session: Session = Depends(get_session),
 ) -> Comanda:
     """RF01/RF06: injeta um pedido vindo de um canal externo (iFood/WhatsApp)
@@ -64,16 +65,30 @@ def ingestao_externa(
     daqui (KDS, fechamento, relatórios). Chamado pelo anotaai-worker depois
     de validar a assinatura do provedor e normalizar o payload.
 
-    Fase 1: cada pedido externo vira uma comanda própria. Fase 4/5 pode
-    evoluir pra consolidar múltiplos pedidos do mesmo cliente numa única
-    comanda, se fizer sentido pro negócio."""
+    Idempotente: se o provedor reenviar o mesmo id_referencia_externa (comum
+    em timeout de webhook), devolve a comanda ja criada em vez de duplicar."""
     operador_referencia = session.exec(select(Operador)).first()
     if not operador_referencia:
         raise HTTPException(status_code=503, detail="Loja ainda não inicializada")
     id_loja = operador_referencia.id_loja
 
+    existente = session.exec(
+        select(Comanda)
+        .where(Comanda.id_loja == id_loja)
+        .where(Comanda.origem_externa == payload.origem)
+        .where(Comanda.id_referencia_externa == payload.id_referencia_externa)
+    ).first()
+    if existente:
+        response.status_code = status.HTTP_200_OK
+        return existente
+
     identificador = f"{payload.origem.value} #{payload.id_referencia_externa}"
-    comanda = Comanda(id_loja=id_loja, identificador=identificador)
+    comanda = Comanda(
+        id_loja=id_loja,
+        identificador=identificador,
+        origem_externa=payload.origem,
+        id_referencia_externa=payload.id_referencia_externa,
+    )
     session.add(comanda)
 
     tickets_novos: list[TicketProducao] = []
