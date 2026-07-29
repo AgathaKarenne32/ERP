@@ -4,8 +4,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from prometheus_fastapi_instrumentator import Instrumentator
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from .core.logging_config import configurar_logging
+from .core.rate_limit import limiter
 from .routers import auth, caixa, clientes, insumos, lojas, produtos, vendas
 from .seed import seed_demo_data
 
@@ -20,6 +24,10 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="Eclética API", version="0.1.0", lifespan=lifespan)
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
