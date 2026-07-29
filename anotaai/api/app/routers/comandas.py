@@ -5,14 +5,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from ..core.db import get_session
-from ..core.deps import get_current_loja_id, require_roles
+from ..core.deps import get_current_loja_id, require_roles, verify_internal_token
 from ..core.ecletica_client import solicitar_baixa_estoque, solicitar_credito_fidelidade
-from ..models import Comanda, ItemComanda, PapelOperador, StatusComanda, TicketProducao
+from ..models import Comanda, ItemComanda, Operador, PapelOperador, StatusComanda, TicketProducao
 from ..schemas import (
     ComandaCancelarRequest,
     ComandaCreate,
     ComandaOut,
     ComandaVincularClienteRequest,
+    IngestaoExternaRequest,
     ItemComandaCreate,
     ItemComandaOut,
     TransferirItensRequest,
@@ -44,6 +45,51 @@ def listar_comandas(
     id_loja: uuid.UUID = Depends(get_current_loja_id),
 ) -> list[Comanda]:
     return list(session.exec(select(Comanda).where(Comanda.id_loja == id_loja)).all())
+
+
+@router.post(
+    "/ingestao-externa",
+    response_model=ComandaOut,
+    status_code=201,
+    dependencies=[Depends(verify_internal_token)],
+)
+def ingestao_externa(
+    payload: IngestaoExternaRequest,
+    session: Session = Depends(get_session),
+) -> Comanda:
+    """RF01/RF06: injeta um pedido vindo de um canal externo (iFood/WhatsApp)
+    como uma comanda nova — mesmo ciclo de vida de uma venda de salão a partir
+    daqui (KDS, fechamento, relatórios). Chamado pelo anotaai-worker depois
+    de validar a assinatura do provedor e normalizar o payload.
+
+    Fase 1: cada pedido externo vira uma comanda própria. Fase 4/5 pode
+    evoluir pra consolidar múltiplos pedidos do mesmo cliente numa única
+    comanda, se fizer sentido pro negócio."""
+    operador_referencia = session.exec(select(Operador)).first()
+    if not operador_referencia:
+        raise HTTPException(status_code=503, detail="Loja ainda não inicializada")
+    id_loja = operador_referencia.id_loja
+
+    identificador = f"{payload.origem.value} #{payload.id_referencia_externa}"
+    comanda = Comanda(id_loja=id_loja, identificador=identificador)
+    session.add(comanda)
+
+    for item_payload in payload.itens:
+        item = ItemComanda(
+            id_loja=id_loja,
+            id_comanda=comanda.id,
+            origem=payload.origem,
+            **item_payload.model_dump(),
+        )
+        session.add(item)
+        comanda.valor_total += item.quantidade * item.preco_aplicado
+
+        ticket = TicketProducao(id_loja=id_loja, id_item_comanda=item.id)
+        session.add(ticket)
+
+    session.commit()
+    session.refresh(comanda)
+    return comanda
 
 
 @router.patch("/{comanda_id}/cliente", response_model=ComandaOut)
