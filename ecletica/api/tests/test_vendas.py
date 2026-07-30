@@ -78,3 +78,27 @@ def test_baixa_estoque_rejeita_token_interno_errado(client: TestClient, loja: Lo
         json={"id_loja": str(loja.id), "itens": []},
     )
     assert resposta.status_code == 401
+
+
+def test_baixa_estoque_e_idempotente_por_referencia(
+    client: TestClient, session: Session, loja: Loja, headers_interno: dict
+):
+    """Reenvio da mesma referencia (retry de rede do lado da anotaai-api)
+    não duplica a baixa de estoque nem a soma no caixa."""
+    produto, insumo = _criar_produto_com_ficha(session, loja)
+    payload = {
+        "id_loja": str(loja.id),
+        "referencia": "venda-idempotente-001",
+        "valor_total": 15,
+        "itens": [{"id_produto": str(produto.id), "quantidade": 1}],
+    }
+
+    primeira = client.post("/vendas/baixa-estoque", headers=headers_interno, json=payload)
+    assert primeira.status_code == 204
+    session.refresh(insumo)
+    assert insumo.qtd_estoque == 8  # 10 - (1 * 2)
+
+    segunda = client.post("/vendas/baixa-estoque", headers=headers_interno, json=payload)
+    assert segunda.status_code == 204
+    session.refresh(insumo)
+    assert insumo.qtd_estoque == 8  # não decrementou de novo

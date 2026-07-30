@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from enum import Enum
 
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, SQLModel, UniqueConstraint
 
 
 def _now() -> datetime:
@@ -108,6 +108,23 @@ class FechamentoCaixa(SQLModel, table=True):
     aberto_em: datetime
     fechado_em: datetime | None = None
     valor_total: float = Field(default=0)
+
+
+class VendaProcessada(SQLModel, table=True):
+    """Marca de idempotência pra POST /vendas/baixa-estoque. A chamada
+    anotaai->ecletica é síncrona e ganhou retry de rede — sem isso, um
+    retry depois que o processamento já tinha concluído (timeout só na
+    volta da resposta) duplicaria a baixa de estoque e a soma no caixa."""
+
+    __tablename__ = "venda_processada"
+    __table_args__ = (
+        UniqueConstraint("id_loja", "referencia", name="uq_venda_processada_loja_referencia"),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    id_loja: uuid.UUID = Field(foreign_key="loja.id", index=True)
+    referencia: str | None = Field(default=None, index=True)
+    criado_em: datetime = Field(default_factory=_now)
 
 
 class RefreshToken(SQLModel, table=True):
