@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from enum import Enum
 
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, SQLModel, UniqueConstraint
 
 
 def _now() -> datetime:
@@ -59,6 +59,24 @@ class OrigemPedido(str, Enum):
     SALAO = "SALAO"
     IFOOD = "IFOOD"
     WHATSAPP = "WHATSAPP"
+
+
+class IntegracaoLoja(SQLModel, table=True):
+    """Roteia um pedido externo (iFood/WhatsApp) para a loja correta.
+    Sem isso, a ingestão externa não tem como saber qual loja recebeu
+    o pedido — é o de-para entre o identificador do provedor (merchant
+    ID do iFood, número de telefone do WhatsApp Business) e id_loja."""
+
+    __tablename__ = "integracao_loja"
+    __table_args__ = (
+        UniqueConstraint("provedor", "identificador_externo", name="uq_integracao_provedor_identificador"),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    id_loja: uuid.UUID = Field(index=True)
+    provedor: OrigemPedido
+    identificador_externo: str = Field(index=True)
+    criado_em: datetime = Field(default_factory=_now)
 
 
 class Comanda(SQLModel, table=True):

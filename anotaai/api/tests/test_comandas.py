@@ -100,6 +100,7 @@ def test_ingestao_externa_e_idempotente(client: TestClient, headers_interno: dic
     duplica a comanda."""
     payload = {
         "origem": "IFOOD",
+        "identificador_loja_externa": "MERCHANT-TESTE",
         "id_referencia_externa": "TESTE-IDEMPOTENCIA-001",
         "itens": [
             {
