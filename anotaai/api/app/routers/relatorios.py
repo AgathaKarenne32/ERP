@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 from ..core.db import get_session
 from ..core.deps import get_current_loja_id, require_roles
 from ..models import Comanda, ItemComanda, PapelOperador, StatusComanda
-from ..schemas import ProdutoMaisVendidoOut, RelatorioVendasOut
+from ..schemas import ProdutoMaisVendidoOut, RelatorioVendasOut, ValorPorFormaPagamentoOut
 
 router = APIRouter(prefix="/relatorios", tags=["relatorios"])
 
@@ -45,12 +45,28 @@ def relatorio_vendas(
     quantidade = len(comandas)
     ticket_medio = total / quantidade if quantidade else 0.0
 
+    agregados: dict[str, dict[str, float]] = {}
+    for comanda in comandas:
+        if comanda.forma_pagamento is None:
+            continue
+        agregado = agregados.setdefault(
+            comanda.forma_pagamento, {"valor_total": 0.0, "quantidade_comandas": 0}
+        )
+        agregado["valor_total"] += comanda.valor_total
+        agregado["quantidade_comandas"] += 1
+
+    por_forma_pagamento = [
+        ValorPorFormaPagamentoOut(forma_pagamento=forma, **dados)
+        for forma, dados in agregados.items()
+    ]
+
     return RelatorioVendasOut(
         periodo_inicio=inicio,
         periodo_fim=fim,
         total_vendas=total,
         quantidade_comandas=quantidade,
         ticket_medio=ticket_medio,
+        por_forma_pagamento=por_forma_pagamento,
     )
 
 

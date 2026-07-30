@@ -27,21 +27,40 @@ def _lancar_item(client: TestClient, headers: dict, comanda_id: str, preco: floa
 def test_garcom_nao_pode_fechar_comanda(client: TestClient, headers_garcom: dict):
     """RN03: só Caixa/Admin/Gerente fecham comanda."""
     comanda = _abrir_comanda(client, headers_garcom)
-    resposta = client.patch(f"/comandas/{comanda['id']}/fechar", headers=headers_garcom)
+    resposta = client.patch(
+        f"/comandas/{comanda['id']}/fechar",
+        headers=headers_garcom,
+        json={"forma_pagamento": "DINHEIRO"},
+    )
     assert resposta.status_code == 403
 
 
 def test_caixa_fecha_comanda(client: TestClient, headers_caixa: dict):
     comanda = _abrir_comanda(client, headers_caixa)
-    resposta = client.patch(f"/comandas/{comanda['id']}/fechar", headers=headers_caixa)
+    resposta = client.patch(
+        f"/comandas/{comanda['id']}/fechar",
+        headers=headers_caixa,
+        json={"forma_pagamento": "PIX"},
+    )
     assert resposta.status_code == 200
     assert resposta.json()["status"] == "PAGA"
+    assert resposta.json()["forma_pagamento"] == "PIX"
+
+
+def test_fechar_comanda_exige_forma_pagamento(client: TestClient, headers_caixa: dict):
+    comanda = _abrir_comanda(client, headers_caixa)
+    resposta = client.patch(f"/comandas/{comanda['id']}/fechar", headers=headers_caixa, json={})
+    assert resposta.status_code == 422
 
 
 def test_nao_pode_lancar_item_em_comanda_fechada(client: TestClient, headers_caixa: dict):
     """RN03."""
     comanda = _abrir_comanda(client, headers_caixa)
-    client.patch(f"/comandas/{comanda['id']}/fechar", headers=headers_caixa)
+    client.patch(
+        f"/comandas/{comanda['id']}/fechar",
+        headers=headers_caixa,
+        json={"forma_pagamento": "DINHEIRO"},
+    )
 
     resposta = client.post(
         f"/comandas/{comanda['id']}/itens",
@@ -68,7 +87,11 @@ def test_item_grava_snapshot_de_preco_e_nome(client: TestClient, headers_caixa: 
 def test_cancelar_comanda_ja_paga_bloqueia(client: TestClient, headers_caixa: dict):
     """RN03 (extensão)."""
     comanda = _abrir_comanda(client, headers_caixa)
-    client.patch(f"/comandas/{comanda['id']}/fechar", headers=headers_caixa)
+    client.patch(
+        f"/comandas/{comanda['id']}/fechar",
+        headers=headers_caixa,
+        json={"forma_pagamento": "DINHEIRO"},
+    )
 
     resposta = client.patch(
         f"/comandas/{comanda['id']}/cancelar", headers=headers_caixa, json={"motivo": "teste"}

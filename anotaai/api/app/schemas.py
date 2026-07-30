@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr
 
-from .models import OrigemPedido, StatusComanda, StatusProducao
+from .models import FormaPagamento, OrigemPedido, StatusComanda, StatusProducao
 
 
 class LoginRequest(BaseModel):
@@ -54,6 +54,11 @@ class ComandaOut(BaseModel):
     valor_total: float
     aberta_em: datetime
     motivo_cancelamento: str | None = None
+    forma_pagamento: FormaPagamento | None = None
+
+
+class ComandaFecharRequest(BaseModel):
+    forma_pagamento: FormaPagamento
 
 
 class ComandaCancelarRequest(BaseModel):
@@ -98,12 +103,19 @@ class TicketProducaoOut(BaseModel):
     status_producao: StatusProducao
 
 
+class ValorPorFormaPagamentoOut(BaseModel):
+    forma_pagamento: FormaPagamento
+    valor_total: float
+    quantidade_comandas: int
+
+
 class RelatorioVendasOut(BaseModel):
     periodo_inicio: datetime | None
     periodo_fim: datetime | None
     total_vendas: float
     quantidade_comandas: int
     ticket_medio: float
+    por_forma_pagamento: list[ValorPorFormaPagamentoOut]
 
 
 class ProdutoMaisVendidoOut(BaseModel):
