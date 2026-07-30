@@ -1,3 +1,8 @@
+import os
+
+os.environ.setdefault("ECLETICA_SECRET_KEY", "test-secret-ecletica")
+os.environ.setdefault("INTERNAL_API_TOKEN", "test-internal-token")
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, SQLModel, create_engine
