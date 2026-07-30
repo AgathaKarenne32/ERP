@@ -12,7 +12,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from .core.config import settings
 from .core.logging_config import configurar_logging
 from .core.rate_limit import limiter
-from .routers import auth, comandas, kds, relatorios, webhooks
+from .routers import auth, comandas, integracoes, kds, relatorios, webhooks
 from .seed import seed_demo_data
 
 configurar_logging("anotaai-api")
@@ -79,6 +79,7 @@ def health() -> dict:
 
 app.include_router(auth.router)
 app.include_router(comandas.router)
+app.include_router(integracoes.router)
 app.include_router(kds.router)
 app.include_router(relatorios.router)
 app.include_router(webhooks.router)

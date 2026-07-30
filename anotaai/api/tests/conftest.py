@@ -17,7 +17,7 @@ from app.core.config import settings
 from app.core.db import get_session
 from app.core.security import create_access_token, hash_password
 from app.main import app
-from app.models import Operador, PapelOperador
+from app.models import IntegracaoLoja, Operador, OrigemPedido, PapelOperador
 
 
 @pytest.fixture(name="session")
@@ -97,12 +97,26 @@ def headers_cozinha(session: Session, id_loja: uuid.UUID) -> dict:
 
 
 @pytest.fixture
+def headers_admin(session: Session, id_loja: uuid.UUID) -> dict:
+    operador = _criar_operador(session, id_loja, PapelOperador.ADMIN, "admin@teste.local")
+    return _headers(operador)
+
+
+@pytest.fixture
 def headers_interno() -> dict:
     return {"X-Internal-Token": settings.internal_api_token}
 
 
 @pytest.fixture
 def loja_inicializada(session: Session, id_loja: uuid.UUID) -> None:
-    """Garante que existe pelo menos um Operador — necessário pra
-    ingestao_externa resolver a loja padrão (fase 1, single-loja)."""
+    """Garante que existe pelo menos um Operador e uma IntegracaoLoja
+    mapeando os identificadores externos usados nos testes — necessário
+    pra ingestao_externa rotear pra loja certa (RN06, multi-loja)."""
     _criar_operador(session, id_loja, PapelOperador.ADMIN, "admin@teste.local")
+    session.add(
+        IntegracaoLoja(id_loja=id_loja, provedor=OrigemPedido.IFOOD, identificador_externo="MERCHANT-TESTE")
+    )
+    session.add(
+        IntegracaoLoja(id_loja=id_loja, provedor=OrigemPedido.WHATSAPP, identificador_externo="NUMERO-TESTE")
+    )
+    session.commit()

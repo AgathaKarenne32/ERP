@@ -25,6 +25,20 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class IntegracaoLojaCreate(BaseModel):
+    provedor: OrigemPedido
+    identificador_externo: str
+
+
+class IntegracaoLojaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    id_loja: uuid.UUID
+    provedor: OrigemPedido
+    identificador_externo: str
+
+
 class ComandaCreate(BaseModel):
     identificador: str
     id_cliente: uuid.UUID | None = None
@@ -108,5 +122,6 @@ class ItemIngestaoExterna(BaseModel):
 
 class IngestaoExternaRequest(BaseModel):
     origem: OrigemPedido
+    identificador_loja_externa: str
     id_referencia_externa: str
     itens: list[ItemIngestaoExterna]

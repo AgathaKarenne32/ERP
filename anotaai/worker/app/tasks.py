@@ -18,9 +18,12 @@ ANOTAAI_API_URL = os.getenv("ANOTAAI_API_URL", "http://anotaai-api:8000")
 INTERNAL_API_TOKEN = os.getenv("INTERNAL_API_TOKEN", "change-me-internal-token")
 
 
-def _injetar_comanda(origem: str, id_referencia_externa: str, itens: list[dict]) -> None:
+def _injetar_comanda(
+    origem: str, identificador_loja_externa: str, id_referencia_externa: str, itens: list[dict]
+) -> None:
     payload = {
         "origem": origem,
+        "identificador_loja_externa": identificador_loja_externa,
         "id_referencia_externa": id_referencia_externa,
         "itens": itens,
     }
@@ -60,9 +63,10 @@ def _normalizar_itens(items_originais: list[dict]) -> list[dict]:
 )
 def processar_webhook_ifood(payload: dict) -> dict:
     id_referencia = str(payload.get("id"))
+    identificador_loja = str(payload.get("merchantId", ""))
     itens = _normalizar_itens(payload.get("items", []))
 
-    _injetar_comanda("IFOOD", id_referencia, itens)
+    _injetar_comanda("IFOOD", identificador_loja, id_referencia, itens)
 
     logger.info("Pedido iFood %s injetado como comanda", id_referencia)
     return {"status": "processado", "id_referencia_externa": id_referencia}
@@ -76,9 +80,12 @@ def processar_webhook_ifood(payload: dict) -> dict:
 )
 def processar_webhook_whatsapp(payload: dict) -> dict:
     id_referencia = payload.get("from") or payload.get("identificador_cliente", "desconhecido")
+    # "to" é o número do WhatsApp Business que recebeu a mensagem — é ele
+    # que identifica QUAL loja, diferente de "from" (o cliente que pediu).
+    identificador_loja = payload.get("to", "")
     itens = _normalizar_itens(payload.get("itens", []))
 
-    _injetar_comanda("WHATSAPP", id_referencia, itens)
+    _injetar_comanda("WHATSAPP", identificador_loja, id_referencia, itens)
 
     logger.info("Pedido WhatsApp de %s injetado como comanda", id_referencia)
     return {"status": "processado", "id_referencia_externa": id_referencia}

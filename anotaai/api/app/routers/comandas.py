@@ -8,7 +8,7 @@ from ..core.db import get_session
 from ..core.deps import get_current_loja_id, require_roles, verify_internal_token
 from ..core.ecletica_client import solicitar_baixa_estoque, solicitar_credito_fidelidade
 from ..core.realtime import publicar_atualizacao_kds
-from ..models import Comanda, ItemComanda, Operador, PapelOperador, StatusComanda, TicketProducao
+from ..models import Comanda, IntegracaoLoja, ItemComanda, PapelOperador, StatusComanda, TicketProducao
 from ..schemas import (
     ComandaCancelarRequest,
     ComandaCreate,
@@ -72,11 +72,23 @@ def ingestao_externa(
     de validar a assinatura do provedor e normalizar o payload.
 
     Idempotente: se o provedor reenviar o mesmo id_referencia_externa (comum
-    em timeout de webhook), devolve a comanda ja criada em vez de duplicar."""
-    operador_referencia = session.exec(select(Operador)).first()
-    if not operador_referencia:
-        raise HTTPException(status_code=503, detail="Loja ainda não inicializada")
-    id_loja = operador_referencia.id_loja
+    em timeout de webhook), devolve a comanda ja criada em vez de duplicar.
+
+    Roteamento multi-loja: o provedor não sabe nada sobre id_loja interno —
+    resolve pela IntegracaoLoja cadastrada pra aquele provedor+identificador
+    externo (merchant ID do iFood, número do WhatsApp Business). Sem
+    mapeamento, rejeita explicitamente em vez de adivinhar uma loja."""
+    integracao = session.exec(
+        select(IntegracaoLoja)
+        .where(IntegracaoLoja.provedor == payload.origem)
+        .where(IntegracaoLoja.identificador_externo == payload.identificador_loja_externa)
+    ).first()
+    if not integracao:
+        raise HTTPException(
+            status_code=422,
+            detail="Nenhuma loja configurada para esse provedor/identificador externo",
+        )
+    id_loja = integracao.id_loja
 
     existente = session.exec(
         select(Comanda)
