@@ -5,8 +5,8 @@ from fastapi import APIRouter, Depends
 from sqlmodel import Session, select
 
 from ..core.db import get_session
-from ..core.deps import get_current_loja_id
-from ..models import Comanda, ItemComanda, StatusComanda
+from ..core.deps import get_current_loja_id, require_roles
+from ..models import Comanda, ItemComanda, PapelOperador, StatusComanda
 from ..schemas import ProdutoMaisVendidoOut, RelatorioVendasOut
 
 router = APIRouter(prefix="/relatorios", tags=["relatorios"])
@@ -36,6 +36,7 @@ def relatorio_vendas(
     fim: datetime | None = None,
     session: Session = Depends(get_session),
     id_loja: uuid.UUID = Depends(get_current_loja_id),
+    _operador=Depends(require_roles(PapelOperador.ADMIN, PapelOperador.GERENTE, PapelOperador.CAIXA)),
 ) -> RelatorioVendasOut:
     """RF10: total vendido, quantidade de comandas pagas e ticket médio no
     período. Considera só comandas PAGA — nunca ABERTA ou CANCELADA."""
@@ -60,6 +61,7 @@ def produtos_mais_vendidos(
     limite: int = 10,
     session: Session = Depends(get_session),
     id_loja: uuid.UUID = Depends(get_current_loja_id),
+    _operador=Depends(require_roles(PapelOperador.ADMIN, PapelOperador.GERENTE, PapelOperador.CAIXA)),
 ) -> list[ProdutoMaisVendidoOut]:
     """RF10: ranking de produtos por valor vendido no período."""
     comandas = _comandas_pagas_no_periodo(session, id_loja, inicio, fim)

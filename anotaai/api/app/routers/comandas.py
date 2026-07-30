@@ -29,6 +29,9 @@ def abrir_comanda(
     payload: ComandaCreate,
     session: Session = Depends(get_session),
     id_loja: uuid.UUID = Depends(get_current_loja_id),
+    _operador=Depends(
+        require_roles(PapelOperador.ADMIN, PapelOperador.GERENTE, PapelOperador.CAIXA, PapelOperador.GARCOM)
+    ),
 ) -> Comanda:
     comanda = Comanda(
         id_loja=id_loja,
@@ -45,6 +48,9 @@ def abrir_comanda(
 def listar_comandas(
     session: Session = Depends(get_session),
     id_loja: uuid.UUID = Depends(get_current_loja_id),
+    _operador=Depends(
+        require_roles(PapelOperador.ADMIN, PapelOperador.GERENTE, PapelOperador.CAIXA, PapelOperador.GARCOM)
+    ),
 ) -> list[Comanda]:
     return list(session.exec(select(Comanda).where(Comanda.id_loja == id_loja)).all())
 
@@ -124,6 +130,9 @@ def vincular_cliente(
     payload: ComandaVincularClienteRequest,
     session: Session = Depends(get_session),
     id_loja: uuid.UUID = Depends(get_current_loja_id),
+    _operador=Depends(
+        require_roles(PapelOperador.ADMIN, PapelOperador.GERENTE, PapelOperador.CAIXA, PapelOperador.GARCOM)
+    ),
 ) -> Comanda:
     """Vincula (ou troca) o cliente de uma comanda aberta — pré-requisito
     pra fidelidade (RN05), que credita pontos com base nesse vínculo."""
@@ -146,6 +155,9 @@ def adicionar_item(
     payload: ItemComandaCreate,
     session: Session = Depends(get_session),
     id_loja: uuid.UUID = Depends(get_current_loja_id),
+    _operador=Depends(
+        require_roles(PapelOperador.ADMIN, PapelOperador.GERENTE, PapelOperador.CAIXA, PapelOperador.GARCOM)
+    ),
 ) -> ItemComanda:
     """RF06: consolida pedidos físicos (SALAO) e virtuais (IFOOD/WHATSAPP) na
     mesma comanda. RN04: preço e nome são gravados como snapshot no item."""
@@ -182,6 +194,9 @@ def transferir_itens(
     payload: TransferirItensRequest,
     session: Session = Depends(get_session),
     id_loja: uuid.UUID = Depends(get_current_loja_id),
+    _operador=Depends(
+        require_roles(PapelOperador.ADMIN, PapelOperador.GERENTE, PapelOperador.CAIXA, PapelOperador.GARCOM)
+    ),
 ) -> Comanda:
     """RF05: move itens de uma comanda pra outra (ex: cliente trocou de mesa,
     ou fundir contas no fechamento). As duas comandas precisam estar ABERTA."""

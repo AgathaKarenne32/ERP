@@ -69,6 +69,40 @@ def headers_admin(usuario_admin: Usuario) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
 
+def _criar_usuario(session: Session, loja: Loja, papel: PapelUsuario, email: str) -> Usuario:
+    usuario = Usuario(
+        id_loja=loja.id,
+        nome=f"{papel.value} Teste",
+        email=email,
+        senha_hash=hash_password("senha123"),
+        papel=papel,
+    )
+    session.add(usuario)
+    session.commit()
+    session.refresh(usuario)
+    return usuario
+
+
+def _headers(usuario: Usuario) -> dict:
+    token = create_access_token(
+        subject=str(usuario.id),
+        extra_claims={"papel": usuario.papel.value, "id_loja": str(usuario.id_loja)},
+    )
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def headers_caixa(session: Session, loja: Loja) -> dict:
+    usuario = _criar_usuario(session, loja, PapelUsuario.CAIXA, "caixa@teste.local")
+    return _headers(usuario)
+
+
+@pytest.fixture
+def headers_garcom(session: Session, loja: Loja) -> dict:
+    usuario = _criar_usuario(session, loja, PapelUsuario.GARCOM, "garcom@teste.local")
+    return _headers(usuario)
+
+
 @pytest.fixture
 def headers_interno() -> dict:
     return {"X-Internal-Token": settings.internal_api_token}

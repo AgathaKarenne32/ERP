@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from ..core.db import get_session
-from ..core.deps import get_current_loja_id, verify_internal_token
-from ..models import Cliente
+from ..core.deps import get_current_loja_id, require_roles, verify_internal_token
+from ..models import Cliente, PapelUsuario
 from ..schemas import ClienteCreate, ClienteOut, CreditarPontosRequest
 
 router = APIRouter(prefix="/clientes", tags=["clientes"])
@@ -24,6 +24,7 @@ def cadastrar_cliente(
     payload: ClienteCreate,
     session: Session = Depends(get_session),
     id_loja: uuid.UUID = Depends(get_current_loja_id),
+    _usuario=Depends(require_roles(PapelUsuario.ADMIN, PapelUsuario.GERENTE, PapelUsuario.CAIXA)),
 ) -> Cliente:
     cliente = Cliente(id_loja=id_loja, **payload.model_dump())
     session.add(cliente)
