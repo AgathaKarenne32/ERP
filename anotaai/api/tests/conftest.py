@@ -91,6 +91,12 @@ def headers_garcom(session: Session, id_loja: uuid.UUID) -> dict:
 
 
 @pytest.fixture
+def headers_cozinha(session: Session, id_loja: uuid.UUID) -> dict:
+    operador = _criar_operador(session, id_loja, PapelOperador.COZINHA, "cozinha@teste.local")
+    return _headers(operador)
+
+
+@pytest.fixture
 def headers_interno() -> dict:
     return {"X-Internal-Token": settings.internal_api_token}
 

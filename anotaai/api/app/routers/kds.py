@@ -7,10 +7,10 @@ from jose import JWTError
 from sqlmodel import Session, select
 
 from ..core.db import get_session
-from ..core.deps import get_current_loja_id
+from ..core.deps import get_current_loja_id, require_roles
 from ..core.realtime import canal_kds, cliente_redis_async, publicar_atualizacao_kds
 from ..core.security import decode_access_token
-from ..models import StatusProducao, TicketProducao
+from ..models import PapelOperador, StatusProducao, TicketProducao
 from ..schemas import TicketProducaoOut
 
 router = APIRouter(prefix="/kds", tags=["kds"])
@@ -38,6 +38,9 @@ def atualizar_status(
     novo_status: StatusProducao,
     session: Session = Depends(get_session),
     id_loja: uuid.UUID = Depends(get_current_loja_id),
+    _operador=Depends(
+        require_roles(PapelOperador.ADMIN, PapelOperador.GERENTE, PapelOperador.COZINHA, PapelOperador.GARCOM)
+    ),
 ) -> TicketProducao:
     ticket = session.get(TicketProducao, ticket_id)
     if not ticket or ticket.id_loja != id_loja:

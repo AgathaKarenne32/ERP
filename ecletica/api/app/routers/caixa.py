@@ -57,6 +57,7 @@ def fechar_caixa(
 def listar_caixas(
     session: Session = Depends(get_session),
     id_loja: uuid.UUID = Depends(get_current_loja_id),
+    _usuario=Depends(require_roles(PapelUsuario.ADMIN, PapelUsuario.GERENTE, PapelUsuario.CAIXA)),
 ) -> list[FechamentoCaixa]:
     return list(
         session.exec(
