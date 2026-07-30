@@ -11,7 +11,7 @@ from app.main import app
 @pytest.fixture
 def mock_celery():
     """Mock the Celery client to avoid needing Redis."""
-    with patch("app.core.celery_client.celery_client") as mock:
+    with patch("app.routers.webhooks.celery_client") as mock:
         yield mock
 
 

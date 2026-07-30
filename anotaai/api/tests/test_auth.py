@@ -2,6 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
+from app.core.rate_limit import limiter
 from app.core.security import hash_password
 from app.main import app
 from app.models import Operador, PapelOperador
@@ -12,9 +13,9 @@ def operador_para_login(session: Session, id_loja):
     operador = Operador(
         id_loja=id_loja,
         nome="Teste Login",
-        email="login@teste.local",
+        email="login@teste.com",
         senha_hash=hash_password("senha123"),
-        papel=PapelOperador.OPERADOR,
+        papel=PapelOperador.GARCOM,
     )
     session.add(operador)
     session.commit()
@@ -25,7 +26,7 @@ def operador_para_login(session: Session, id_loja):
 def test_login_success(client: TestClient, operador_para_login: Operador):
     response = client.post(
         "/auth/login",
-        json={"email": "login@teste.local", "senha": "senha123"},
+        json={"email": "login@teste.com", "senha": "senha123"},
     )
     assert response.status_code == 200
     data = response.json()
@@ -36,7 +37,7 @@ def test_login_success(client: TestClient, operador_para_login: Operador):
 def test_login_invalid_credentials(client: TestClient, operador_para_login: Operador):
     response = client.post(
         "/auth/login",
-        json={"email": "login@teste.local", "senha": "senha_errada"},
+        json={"email": "login@teste.com", "senha": "senha_errada"},
     )
     assert response.status_code == 401
     assert response.json()["detail"] == "Email ou senha inválidos"
@@ -45,7 +46,7 @@ def test_login_invalid_credentials(client: TestClient, operador_para_login: Oper
 def test_login_nonexistent_email(client: TestClient):
     response = client.post(
         "/auth/login",
-        json={"email": "nao_existe@teste.local", "senha": "senha123"},
+        json={"email": "nao_existe@teste.com", "senha": "senha123"},
     )
     assert response.status_code == 401
     assert response.json()["detail"] == "Email ou senha inválidos"
@@ -53,7 +54,9 @@ def test_login_nonexistent_email(client: TestClient):
 
 def test_login_rate_limiting(client: TestClient, operador_para_login: Operador):
     """Test that login endpoint is rate limited to 5 requests per minute per IP."""
-    email = "login@teste.local"
+    limiter.reset()
+
+    email = "login@teste.com"
     senha = "senha123"
 
     responses = []
