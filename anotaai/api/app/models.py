@@ -32,10 +32,33 @@ class Operador(SQLModel, table=True):
     ativo: bool = Field(default=True)
 
 
+class RefreshToken(SQLModel, table=True):
+    """Token opaco (não-JWT) usado para renovar o access token. Só o hash é
+    persistido — o valor bruto existe apenas na resposta do login/refresh —
+    e a revogação é feita marcando o registro, já que JWT puro não permite
+    invalidar um token já emitido antes do seu vencimento."""
+
+    __tablename__ = "refresh_token"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    id_operador: uuid.UUID = Field(foreign_key="operador.id", index=True)
+    token_hash: str = Field(unique=True, index=True)
+    criado_em: datetime = Field(default_factory=_now)
+    expira_em: datetime
+    revogado: bool = Field(default=False)
+    revogado_em: datetime | None = None
+
+
 class StatusComanda(str, Enum):
     ABERTA = "ABERTA"
     PAGA = "PAGA"
     CANCELADA = "CANCELADA"
+
+
+class OrigemPedido(str, Enum):
+    SALAO = "SALAO"
+    IFOOD = "IFOOD"
+    WHATSAPP = "WHATSAPP"
 
 
 class Comanda(SQLModel, table=True):
@@ -50,12 +73,8 @@ class Comanda(SQLModel, table=True):
     aberta_em: datetime = Field(default_factory=_now)
     fechada_em: datetime | None = None
     motivo_cancelamento: str | None = None
-
-
-class OrigemPedido(str, Enum):
-    SALAO = "SALAO"
-    IFOOD = "IFOOD"
-    WHATSAPP = "WHATSAPP"
+    origem_externa: OrigemPedido | None = Field(default=None, index=True)
+    id_referencia_externa: str | None = Field(default=None, index=True)
 
 
 class ItemComanda(SQLModel, table=True):

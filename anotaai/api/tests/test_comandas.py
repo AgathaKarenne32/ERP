@@ -93,3 +93,27 @@ def test_transferir_itens_recalcula_totais(client: TestClient, headers_caixa: di
     comandas = client.get("/comandas", headers=headers_caixa).json()
     destino_final = next(c for c in comandas if c["id"] == destino["id"])
     assert destino_final["valor_total"] == 15.0
+
+
+def test_ingestao_externa_e_idempotente(client: TestClient, headers_interno: dict, loja_inicializada: None):
+    """Reenvio do mesmo pedido externo (retry de webhook do provedor) nao
+    duplica a comanda."""
+    payload = {
+        "origem": "IFOOD",
+        "id_referencia_externa": "TESTE-IDEMPOTENCIA-001",
+        "itens": [
+            {
+                "id_produto": str(uuid.uuid4()),
+                "nome_produto": "Caipirinha",
+                "quantidade": 1,
+                "preco_aplicado": 15,
+            }
+        ],
+    }
+
+    primeira = client.post("/comandas/ingestao-externa", headers=headers_interno, json=payload)
+    assert primeira.status_code == 201
+
+    segunda = client.post("/comandas/ingestao-externa", headers=headers_interno, json=payload)
+    assert segunda.status_code == 200
+    assert segunda.json()["id"] == primeira.json()["id"]

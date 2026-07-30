@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 
 from ..core.celery_client import celery_client
 from ..core.config import settings
+from ..core.rate_limit import limiter
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
@@ -16,6 +17,7 @@ def _assinatura_valida(segredo: str, corpo: bytes, assinatura_recebida: str) -> 
 
 
 @router.post("/ifood", status_code=status.HTTP_202_ACCEPTED)
+@limiter.limit("30/minute")
 async def webhook_ifood(request: Request) -> dict:
     """RF01: recebe pedidos do iFood. Valida a assinatura HMAC-SHA256 do
     corpo bruto antes de aceitar, e só enfileira — quem processa de fato
@@ -33,6 +35,7 @@ async def webhook_ifood(request: Request) -> dict:
 
 
 @router.get("/whatsapp")
+@limiter.limit("10/minute")
 def verificar_whatsapp(request: Request) -> Response:
     """Handshake de verificação da Meta Cloud API: confirma o dono do
     endpoint respondendo o hub.challenge, só se o hub.verify_token bater
@@ -47,6 +50,7 @@ def verificar_whatsapp(request: Request) -> Response:
 
 
 @router.post("/whatsapp", status_code=status.HTTP_202_ACCEPTED)
+@limiter.limit("30/minute")
 async def webhook_whatsapp(request: Request) -> dict:
     """RF01: recebe mensagens/pedidos do WhatsApp (Meta Cloud API). Valida
     a assinatura X-Hub-Signature-256 (HMAC-SHA256 com o app secret)."""

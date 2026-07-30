@@ -1,0 +1,51 @@
+name: Tests
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+jobs:
+  test-ecletica-api:
+    runs-on: ubuntu-latest
+    env:
+      ECLETICA_SECRET_KEY: test-secret-ecletica-ci
+      INTERNAL_API_TOKEN: test-internal-token-ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependências
+        working-directory: ecletica/api
+        run: pip install -r requirements.txt
+
+      - name: Rodar testes
+        working-directory: ecletica/api
+        run: pytest -v
+
+  test-anotaai-api:
+    runs-on: ubuntu-latest
+    env:
+      ANOTAAI_SECRET_KEY: test-secret-anotaai-ci
+      INTERNAL_API_TOKEN: test-internal-token-ci
+      ANOTAAI_IFOOD_WEBHOOK_SECRET: test-ifood-secret-ci
+      ANOTAAI_META_APP_SECRET: test-meta-app-secret-ci
+      ANOTAAI_META_VERIFY_TOKEN: test-meta-verify-token-ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependências
+        working-directory: anotaai/api
+        run: pip install -r requirements.txt
+
+      - name: Rodar testes
+        working-directory: anotaai/api
+        run: pytest -v
