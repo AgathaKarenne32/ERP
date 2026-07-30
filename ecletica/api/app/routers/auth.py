@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlmodel import Session, select
 
 from ..core.db import get_session
+from ..core.rate_limit import limiter
 from ..core.security import create_access_token, verify_password
 from ..models import Usuario
 from ..schemas import LoginRequest, TokenResponse
@@ -10,7 +11,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(payload: LoginRequest, session: Session = Depends(get_session)) -> TokenResponse:
+@limiter.limit("5/minute")
+def login(request: Request, payload: LoginRequest, session: Session = Depends(get_session)) -> TokenResponse:
     usuario = session.exec(select(Usuario).where(Usuario.email == payload.email)).first()
     if not usuario or not verify_password(payload.senha, usuario.senha_hash):
         raise HTTPException(
