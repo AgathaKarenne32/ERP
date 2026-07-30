@@ -127,6 +127,28 @@ class VendaProcessada(SQLModel, table=True):
     criado_em: datetime = Field(default_factory=_now)
 
 
+class ProvedorExterno(str, Enum):
+    IFOOD = "IFOOD"
+    WHATSAPP = "WHATSAPP"
+
+
+class MapeamentoSkuExterno(SQLModel, table=True):
+    """De-para entre o SKU do provedor externo (iFood, WhatsApp) e o Produto
+    da ecletica-api. Sem isso, o anotaai-worker não tem como saber a qual
+    produto local um pedido externo se refere — cardápio digital."""
+
+    __tablename__ = "mapeamento_sku_externo"
+    __table_args__ = (
+        UniqueConstraint("provedor", "sku_externo", name="uq_mapeamento_sku_provedor_sku"),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    id_produto: uuid.UUID = Field(foreign_key="produto.id", index=True)
+    provedor: ProvedorExterno
+    sku_externo: str = Field(index=True)
+    criado_em: datetime = Field(default_factory=_now)
+
+
 class RefreshToken(SQLModel, table=True):
     """Token opaco (não-JWT) usado para renovar o access token. Só o hash é
     persistido — o valor bruto existe apenas na resposta do login/refresh —

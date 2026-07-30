@@ -1,0 +1,21 @@
+<div id="skus-{{ produto.id }}">
+  <ul class="skus">
+    {% for mapeamento in mapeamentos_por_produto.get(produto.id, []) %}
+    <li>{{ mapeamento.provedor.value }}: {{ mapeamento.sku_externo }}</li>
+    {% else %}
+    <li>Nenhum SKU externo mapeado.</li>
+    {% endfor %}
+  </ul>
+  {% if erro %}<p class="erro">{{ erro }}</p>{% endif %}
+  <form class="inline"
+        hx-post="/admin/produtos/{{ produto.id }}/mapear-sku"
+        hx-target="#skus-{{ produto.id }}"
+        hx-swap="outerHTML">
+    <select name="provedor">
+      <option value="IFOOD">iFood</option>
+      <option value="WHATSAPP">WhatsApp</option>
+    </select>
+    <input type="text" name="sku_externo" placeholder="SKU externo" required>
+    <button type="submit">Mapear SKU</button>
+  </form>
+</div>

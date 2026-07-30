@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}Painel Eclética{% endblock %}</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <style>
+    :root { color-scheme: light; }
+    body { font-family: system-ui, sans-serif; margin: 0; background: #f5f5f5; color: #1a1a1a; }
+    header { background: #1a1a1a; color: #fff; padding: 0.75rem 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+    header a { color: #fff; text-decoration: none; font-weight: 600; }
+    main { max-width: 960px; margin: 2rem auto; padding: 0 1rem; }
+    table { width: 100%; border-collapse: collapse; background: #fff; margin-bottom: 1.5rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid #e0e0e0; }
+    th { background: #fafafa; }
+    form.inline { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin: 0.5rem 0; }
+    input, select, button { padding: 0.4rem 0.6rem; font-size: 0.95rem; }
+    button { cursor: pointer; background: #1a1a1a; color: #fff; border: none; border-radius: 4px; }
+    button:hover { background: #333; }
+    .card { background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; padding: 1rem; margin-bottom: 1rem; }
+    .erro { color: #b00020; margin: 0.5rem 0; }
+    .skus { list-style: none; padding: 0; margin: 0.5rem 0; }
+    .skus li { font-size: 0.9rem; color: #444; }
+    .logout-form { display: inline; }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/admin/produtos">Painel Eclética</a>
+    {% if usuario %}
+    <form class="logout-form" method="post" action="/admin/logout">
+      <span style="margin-right: 0.75rem;">{{ usuario.nome }}</span>
+      <button type="submit">Sair</button>
+    </form>
+    {% endif %}
+  </header>
+  <main>
+    {% block conteudo %}{% endblock %}
+  </main>
+</body>
+</html>

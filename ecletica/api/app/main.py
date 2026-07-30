@@ -12,7 +12,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from .core.config import settings
 from .core.logging_config import configurar_logging
 from .core.rate_limit import limiter
-from .routers import auth, caixa, clientes, insumos, lojas, produtos, vendas
+from .routers import admin, auth, caixa, cardapio, clientes, insumos, lojas, produtos, vendas
 from .seed import seed_demo_data
 
 configurar_logging("ecletica-api")
@@ -84,3 +84,5 @@ app.include_router(clientes.router)
 app.include_router(vendas.router)
 app.include_router(caixa.router)
 app.include_router(lojas.router)
+app.include_router(cardapio.router)
+app.include_router(admin.router)
