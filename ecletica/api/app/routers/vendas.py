@@ -5,7 +5,7 @@ from sqlmodel import Session, select
 
 from ..core.db import get_session
 from ..core.deps import verify_internal_token
-from ..models import FechamentoCaixa, FichaTecnica, Insumo, MovimentoEstoque, TipoMovimentoEstoque
+from ..models import FechamentoCaixa, FichaTecnica, Insumo, MovimentoEstoque, TipoMovimentoEstoque, VendaProcessada
 from ..schemas import BaixaEstoqueRequest
 
 router = APIRouter(prefix="/vendas", tags=["vendas"])
@@ -22,7 +22,19 @@ def baixar_estoque(
 ) -> None:
     """RN01: abate o estoque dos insumos conforme a ficha técnica de cada produto vendido.
     RN02: bloqueia toda a venda (nenhum insumo é descontado) se faltar estoque de algum.
-    Se houver um caixa aberto para a loja, soma o valor da venda nele."""
+    Se houver um caixa aberto para a loja, soma o valor da venda nele.
+
+    Idempotente por (id_loja, referencia): a anotaai-api pode reenviar essa
+    chamada em retry de timeout de rede — se já foi processada, é um no-op
+    (não duplica baixa de estoque nem soma de caixa)."""
+    ja_processada = session.exec(
+        select(VendaProcessada)
+        .where(VendaProcessada.id_loja == payload.id_loja)
+        .where(VendaProcessada.referencia == payload.referencia)
+    ).first()
+    if ja_processada:
+        return
+
     consumo_por_insumo: dict[uuid.UUID, float] = {}
 
     for item in payload.itens:
@@ -81,4 +93,5 @@ def baixar_estoque(
         caixa_aberto.valor_total += payload.valor_total
         session.add(caixa_aberto)
 
+    session.add(VendaProcessada(id_loja=payload.id_loja, referencia=payload.referencia))
     session.commit()
