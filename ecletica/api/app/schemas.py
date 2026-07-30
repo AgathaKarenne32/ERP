@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr
 
-from .models import TipoMovimentoEstoque
+from .models import ProvedorExterno, TipoMovimentoEstoque
 
 
 class LoginRequest(BaseModel):
@@ -48,6 +48,35 @@ class ProdutoOut(BaseModel):
     preco_venda: float
     categoria: str | None
     ativo_venda: bool
+
+
+class MapeamentoSkuCreate(BaseModel):
+    provedor: ProvedorExterno
+    sku_externo: str
+
+
+class MapeamentoSkuOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    id_produto: uuid.UUID
+    provedor: ProvedorExterno
+    sku_externo: str
+
+
+class ProdutoResolvidoOut(BaseModel):
+    id: uuid.UUID
+    nome: str
+    preco_venda: float
+
+
+class CardapioItemOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    nome: str
+    preco_venda: float
+    categoria: str | None
 
 
 class InsumoCreate(BaseModel):

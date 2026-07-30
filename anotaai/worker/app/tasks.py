@@ -15,6 +15,7 @@ from .celery_app import celery_app
 logger = logging.getLogger(__name__)
 
 ANOTAAI_API_URL = os.getenv("ANOTAAI_API_URL", "http://anotaai-api:8000")
+ECLETICA_API_URL = os.getenv("ECLETICA_API_URL", "http://ecletica-api:8000")
 INTERNAL_API_TOKEN = os.getenv("INTERNAL_API_TOKEN", "change-me-internal-token")
 
 
@@ -37,22 +38,38 @@ def _injetar_comanda(
     resposta.raise_for_status()
 
 
-def _normalizar_itens(items_originais: list[dict]) -> list[dict]:
+def _resolver_produto(provedor: str, sku_externo: str) -> dict:
+    """Traduz o SKU do provedor externo (cardápio digital dele) no produto
+    real da ecletica-api, via o de-para cadastrado em /produtos/mapear-sku."""
+    resposta = httpx.get(
+        f"{ECLETICA_API_URL}/produtos/resolver-sku",
+        params={"provedor": provedor, "sku_externo": sku_externo},
+        headers={"X-Internal-Token": INTERNAL_API_TOKEN},
+        timeout=5.0,
+    )
+    resposta.raise_for_status()
+    return resposta.json()
+
+
+def _normalizar_itens(provedor: str, items_originais: list[dict]) -> list[dict]:
     """Mapeia os campos do payload do provedor pro formato interno.
 
-    TODO (fora do escopo desta feature): assume que `id_produto` já vem no
-    payload. Num catálogo real, o provedor referencia produtos pelo próprio
-    SKU dele, e precisaríamos de uma tabela de-para (SKU externo ->
-    id_produto da ecletica-api) — isso é o cardápio digital, Fase 3."""
-    return [
-        {
-            "id_produto": item["id_produto"],
-            "nome_produto": item.get("nome_produto") or item.get("name", "Item"),
-            "quantidade": item.get("quantidade") or item.get("quantity", 1),
-            "preco_aplicado": item.get("preco_aplicado") or item.get("price", 0),
-        }
-        for item in items_originais
-    ]
+    O provedor referencia produtos pelo próprio SKU dele, não pelo
+    id_produto da ecletica-api — por isso cada item precisa ser resolvido
+    via o de-para (cardápio digital) antes de virar item de comanda."""
+    itens = []
+    for item in items_originais:
+        sku_externo = str(item.get("sku_externo") or item.get("id"))
+        produto = _resolver_produto(provedor, sku_externo)
+        itens.append(
+            {
+                "id_produto": produto["id"],
+                "nome_produto": item.get("nome_produto") or item.get("name") or produto["nome"],
+                "quantidade": item.get("quantidade") or item.get("quantity", 1),
+                "preco_aplicado": item.get("preco_aplicado") or item.get("price") or produto["preco_venda"],
+            }
+        )
+    return itens
 
 
 @celery_app.task(
@@ -64,7 +81,7 @@ def _normalizar_itens(items_originais: list[dict]) -> list[dict]:
 def processar_webhook_ifood(payload: dict) -> dict:
     id_referencia = str(payload.get("id"))
     identificador_loja = str(payload.get("merchantId", ""))
-    itens = _normalizar_itens(payload.get("items", []))
+    itens = _normalizar_itens("IFOOD", payload.get("items", []))
 
     _injetar_comanda("IFOOD", identificador_loja, id_referencia, itens)
 
@@ -83,7 +100,7 @@ def processar_webhook_whatsapp(payload: dict) -> dict:
     # "to" é o número do WhatsApp Business que recebeu a mensagem — é ele
     # que identifica QUAL loja, diferente de "from" (o cliente que pediu).
     identificador_loja = payload.get("to", "")
-    itens = _normalizar_itens(payload.get("itens", []))
+    itens = _normalizar_itens("WHATSAPP", payload.get("itens", []))
 
     _injetar_comanda("WHATSAPP", identificador_loja, id_referencia, itens)
 

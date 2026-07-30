@@ -1,0 +1,24 @@
+{% extends "admin/base.html" %}
+{% block titulo %}Produtos — Painel Eclética{% endblock %}
+{% block conteudo %}
+<h1>Cardápio</h1>
+
+<div class="card">
+  <h2>Novo produto</h2>
+  <form class="inline" method="post" action="/admin/produtos">
+    <input type="text" name="nome" placeholder="Nome" required>
+    <input type="number" name="preco_venda" placeholder="Preço" step="0.01" min="0" required>
+    <input type="text" name="categoria" placeholder="Categoria (opcional)">
+    <button type="submit">Cadastrar</button>
+  </form>
+</div>
+
+{% for produto in produtos %}
+<div class="card">
+  <h3>{{ produto.nome }} — R$ {{ "%.2f"|format(produto.preco_venda) }}{% if produto.categoria %} · {{ produto.categoria }}{% endif %}</h3>
+  {% include "admin/_produto_skus.html" %}
+</div>
+{% else %}
+<p>Nenhum produto cadastrado ainda.</p>
+{% endfor %}
+{% endblock %}
