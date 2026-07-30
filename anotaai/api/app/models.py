@@ -79,6 +79,13 @@ class IntegracaoLoja(SQLModel, table=True):
     criado_em: datetime = Field(default_factory=_now)
 
 
+class FormaPagamento(str, Enum):
+    DINHEIRO = "DINHEIRO"
+    CARTAO_CREDITO = "CARTAO_CREDITO"
+    CARTAO_DEBITO = "CARTAO_DEBITO"
+    PIX = "PIX"
+
+
 class Comanda(SQLModel, table=True):
     __tablename__ = "comanda"
 
@@ -93,6 +100,7 @@ class Comanda(SQLModel, table=True):
     motivo_cancelamento: str | None = None
     origem_externa: OrigemPedido | None = Field(default=None, index=True)
     id_referencia_externa: str | None = Field(default=None, index=True)
+    forma_pagamento: FormaPagamento | None = None
 
 
 class ItemComanda(SQLModel, table=True):

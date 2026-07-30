@@ -12,6 +12,7 @@ from ..models import Comanda, IntegracaoLoja, ItemComanda, PapelOperador, Status
 from ..schemas import (
     ComandaCancelarRequest,
     ComandaCreate,
+    ComandaFecharRequest,
     ComandaOut,
     ComandaVincularClienteRequest,
     IngestaoExternaRequest,
@@ -258,13 +259,16 @@ def transferir_itens(
 @router.patch("/{comanda_id}/fechar", response_model=ComandaOut)
 def fechar_comanda(
     comanda_id: uuid.UUID,
+    payload: ComandaFecharRequest,
     session: Session = Depends(get_session),
     id_loja: uuid.UUID = Depends(get_current_loja_id),
     _operador=Depends(
         require_roles(PapelOperador.CAIXA, PapelOperador.ADMIN, PapelOperador.GERENTE)
     ),
 ) -> Comanda:
-    """RN03: o status só pode ser alterado para PAGA pelo módulo de Caixa (PDV)."""
+    """RN03: o status só pode ser alterado para PAGA pelo módulo de Caixa (PDV).
+    Forma de pagamento é obrigatória — sem ela não dá pra fazer conciliação
+    financeira real (quanto entrou em dinheiro vs cartão vs PIX)."""
     comanda = session.get(Comanda, comanda_id)
     if not comanda or comanda.id_loja != id_loja:
         raise HTTPException(status_code=404, detail="Comanda não encontrada")
@@ -291,6 +295,7 @@ def fechar_comanda(
 
     comanda.status = StatusComanda.PAGA
     comanda.fechada_em = datetime.now(timezone.utc)
+    comanda.forma_pagamento = payload.forma_pagamento
     session.add(comanda)
     session.commit()
     session.refresh(comanda)
