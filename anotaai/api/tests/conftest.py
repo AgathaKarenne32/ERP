@@ -1,3 +1,11 @@
+import os
+
+os.environ.setdefault("ANOTAAI_SECRET_KEY", "test-secret-anotaai")
+os.environ.setdefault("INTERNAL_API_TOKEN", "test-internal-token")
+os.environ.setdefault("ANOTAAI_IFOOD_WEBHOOK_SECRET", "test-ifood-secret")
+os.environ.setdefault("ANOTAAI_META_APP_SECRET", "test-meta-app-secret")
+os.environ.setdefault("ANOTAAI_META_VERIFY_TOKEN", "test-meta-verify-token")
+
 import uuid
 
 import pytest
