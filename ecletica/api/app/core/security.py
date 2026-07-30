@@ -1,3 +1,5 @@
+import hashlib
+import secrets
 from datetime import datetime, timedelta, timezone
 
 from jose import jwt
@@ -24,3 +26,22 @@ def create_access_token(subject: str, extra_claims: dict | None = None) -> str:
 
 def decode_access_token(token: str) -> dict:
     return jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+
+
+def hash_refresh_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def create_refresh_token() -> tuple[str, str]:
+    """Retorna (token_bruto, token_hash). Apenas o hash é persistido no banco;
+    o token bruto é devolvido uma única vez, na resposta do login/refresh."""
+    token = secrets.token_urlsafe(48)
+    return token, hash_refresh_token(token)
+
+
+def refresh_token_expirado(expira_em: datetime) -> bool:
+    """SQLite descarta o tzinfo no round-trip (volta naive); Postgres preserva.
+    Normaliza para UTC antes de comparar para funcionar em ambos."""
+    if expira_em.tzinfo is None:
+        expira_em = expira_em.replace(tzinfo=timezone.utc)
+    return expira_em < datetime.now(timezone.utc)

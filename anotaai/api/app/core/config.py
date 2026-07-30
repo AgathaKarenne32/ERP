@@ -6,7 +6,8 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://ecletica:ecletica@localhost:5432/anotaai"
     secret_key: str = "change-me-anotaai"
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60
+    access_token_expire_minutes: int = 15
+    refresh_token_expire_days: int = 7
     ecletica_api_url: str = "http://ecletica-api:8000"
     internal_api_token: str = Field(default="change-me-internal-token", alias="INTERNAL_API_TOKEN")
     celery_broker_url: str = "redis://redis:6379/0"
