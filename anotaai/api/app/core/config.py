@@ -14,8 +14,13 @@ class Settings(BaseSettings):
     ifood_webhook_secret: str = "change-me-ifood-secret"
     meta_app_secret: str = "change-me-meta-app-secret"
     meta_verify_token: str = "change-me-meta-verify-token"
+    cors_allowed_origins: str = "http://localhost:3000,http://localhost:5173"
 
     model_config = SettingsConfigDict(env_prefix="ANOTAAI_")
+
+    @property
+    def cors_allowed_origins_list(self) -> list[str]:
+        return [origem.strip() for origem in self.cors_allowed_origins.split(",") if origem.strip()]
 
 
 settings = Settings()

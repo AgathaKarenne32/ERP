@@ -9,8 +9,13 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
     internal_api_token: str = Field(default="change-me-internal-token", alias="INTERNAL_API_TOKEN")
+    cors_allowed_origins: str = "http://localhost:3000,http://localhost:5173"
 
     model_config = SettingsConfigDict(env_prefix="ECLETICA_")
+
+    @property
+    def cors_allowed_origins_list(self) -> list[str]:
+        return [origem.strip() for origem in self.cors_allowed_origins.split(",") if origem.strip()]
 
 
 settings = Settings()
