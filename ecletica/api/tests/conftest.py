@@ -2,6 +2,9 @@ import os
 
 os.environ.setdefault("ECLETICA_SECRET_KEY", "test-secret-ecletica")
 os.environ.setdefault("INTERNAL_API_TOKEN", "test-internal-token")
+# Evita exigir um Redis real no CI: rate limit fica em memória durante os testes,
+# só usa o storage distribuído (item 8 do plano de próxima onda) em produção.
+os.environ.setdefault("ECLETICA_RATE_LIMIT_STORAGE_URI", "memory://")
 
 import pytest
 from fastapi.testclient import TestClient

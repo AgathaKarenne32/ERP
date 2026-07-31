@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     ecletica_api_url: str = "http://ecletica-api:8000"
     internal_api_token: str = Field(alias="INTERNAL_API_TOKEN")
     celery_broker_url: str = "redis://redis:6379/0"
+    rate_limit_storage_uri: str = "redis://redis:6379/2"
     ifood_webhook_secret: str
     meta_app_secret: str
     meta_verify_token: str
