@@ -2,14 +2,17 @@ import logging
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from sqlalchemy import text
+from sqlmodel import Session
 
 from .core.config import settings
+from .core.db import get_session
 from .core.logging_config import configurar_logging
 from .core.rate_limit import limiter
 from .routers import admin, auth, caixa, cardapio, clientes, insumos, lojas, produtos, vendas
@@ -74,7 +77,29 @@ async def log_requisicoes(request: Request, call_next):
 
 @app.get("/health")
 def health() -> dict:
+    """Alias de /health/live, mantido por compatibilidade com quem já
+    aponta pra este path."""
     return {"status": "ok", "service": "ecletica-api"}
+
+
+@app.get("/health/live")
+def health_live() -> dict:
+    """Liveness: o processo está de pé. Nunca toca dependência externa —
+    se isso falhar, é o processo em si que está travado/morto."""
+    return {"status": "ok"}
+
+
+@app.get("/health/ready")
+def health_ready(session: Session = Depends(get_session)) -> dict:
+    """Readiness: pronto pra receber tráfego real, ou seja, o banco responde.
+    Postgres fora do ar não deve aparecer como 'saudável' aqui."""
+    try:
+        session.execute(text("SELECT 1"))
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Banco indisponível"
+        ) from exc
+    return {"status": "ok"}
 
 
 app.include_router(auth.router)
