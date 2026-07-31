@@ -8,7 +8,15 @@ from ..core.db import get_session
 from ..core.deps import get_current_loja_id, require_roles, verify_internal_token
 from ..core.ecletica_client import solicitar_baixa_estoque, solicitar_credito_fidelidade
 from ..core.realtime import publicar_atualizacao_kds
-from ..models import Comanda, IntegracaoLoja, ItemComanda, PapelOperador, StatusComanda, TicketProducao
+from ..models import (
+    Comanda,
+    IntegracaoLoja,
+    ItemComanda,
+    PapelOperador,
+    StatusComanda,
+    StatusProducao,
+    TicketProducao,
+)
 from ..schemas import (
     ComandaCancelarRequest,
     ComandaCreate,
@@ -199,6 +207,47 @@ def adicionar_item(
     )
 
     return item
+
+
+@router.delete("/{comanda_id}/itens/{item_id}", status_code=204)
+def remover_item(
+    comanda_id: uuid.UUID,
+    item_id: uuid.UUID,
+    session: Session = Depends(get_session),
+    id_loja: uuid.UUID = Depends(get_current_loja_id),
+    _operador=Depends(
+        require_roles(PapelOperador.ADMIN, PapelOperador.GERENTE, PapelOperador.CAIXA, PapelOperador.GARCOM)
+    ),
+) -> None:
+    """Garçom erra o pedido e precisa tirar um item já lançado antes de
+    fechar a comanda. Bloqueia se a cozinha já começou o preparo (ticket
+    EM_PREPARO ou além) — não faz sentido sumir com um prato que já está
+    sendo feito sem passar pela cozinha primeiro."""
+    comanda = session.get(Comanda, comanda_id)
+    if not comanda or comanda.id_loja != id_loja:
+        raise HTTPException(status_code=404, detail="Comanda não encontrada")
+    if comanda.status != StatusComanda.ABERTA:
+        raise HTTPException(status_code=409, detail="Só é possível remover item de uma comanda aberta")
+
+    item = session.get(ItemComanda, item_id)
+    if not item or item.id_comanda != comanda_id:
+        raise HTTPException(status_code=404, detail="Item não encontrado nesta comanda")
+
+    ticket = session.exec(
+        select(TicketProducao).where(TicketProducao.id_item_comanda == item_id)
+    ).first()
+    if ticket and ticket.status_producao != StatusProducao.PENDENTE:
+        raise HTTPException(
+            status_code=409,
+            detail="Item já está em preparo ou além — não pode mais ser removido",
+        )
+
+    comanda.valor_total -= item.quantidade * item.preco_aplicado
+    session.add(comanda)
+    if ticket:
+        session.delete(ticket)
+    session.delete(item)
+    session.commit()
 
 
 @router.post("/{comanda_id}/transferir-itens", response_model=ComandaOut)
