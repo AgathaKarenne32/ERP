@@ -19,6 +19,24 @@ def listar_insumos(
     return list(session.exec(select(Insumo).where(Insumo.id_loja == id_loja)).all())
 
 
+@router.get("/abaixo-do-minimo", response_model=list[InsumoOut])
+def insumos_abaixo_do_minimo(
+    session: Session = Depends(get_session),
+    id_loja: uuid.UUID = Depends(get_current_loja_id),
+    _usuario=Depends(require_roles(PapelUsuario.ADMIN, PapelUsuario.GERENTE)),
+) -> list[Insumo]:
+    """Item 9 do plano de próxima onda: sinaliza insumo que vai faltar antes
+    que falte de verdade (ex: gelo sexta à noite). Estritamente abaixo do
+    mínimo - no mínimo exato ainda não é alerta."""
+    return list(
+        session.exec(
+            select(Insumo)
+            .where(Insumo.id_loja == id_loja)
+            .where(Insumo.qtd_estoque < Insumo.estoque_minimo)
+        ).all()
+    )
+
+
 @router.post("", response_model=InsumoOut, status_code=201)
 def criar_insumo(
     payload: InsumoCreate,

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Generic, TypeVar
 
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, computed_field
 
 from .models import FormaPagamento, OrigemPedido, StatusComanda, StatusProducao
 
@@ -62,9 +62,15 @@ class ComandaOut(BaseModel):
     id_cliente: uuid.UUID | None
     status: StatusComanda
     valor_total: float
+    desconto_total: float
     aberta_em: datetime
     motivo_cancelamento: str | None = None
     forma_pagamento: FormaPagamento | None = None
+
+    @computed_field
+    @property
+    def valor_liquido(self) -> float:
+        return self.valor_total - self.desconto_total
 
 
 class ComandaFecharRequest(BaseModel):
@@ -73,6 +79,10 @@ class ComandaFecharRequest(BaseModel):
 
 class ComandaCancelarRequest(BaseModel):
     motivo: str
+
+
+class ComandaDescontoRequest(BaseModel):
+    desconto_total: float = Field(ge=0)
 
 
 class ComandaVincularClienteRequest(BaseModel):

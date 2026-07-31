@@ -49,6 +49,7 @@ class Insumo(SQLModel, table=True):
     unidade_medida: str  # Ex: 'L', 'KG', 'UN'
     custo_unitario: float
     qtd_estoque: float = Field(default=0)
+    estoque_minimo: float = Field(default=0)
 
 
 class Produto(SQLModel, table=True):
