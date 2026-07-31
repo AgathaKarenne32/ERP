@@ -5,6 +5,9 @@ os.environ.setdefault("INTERNAL_API_TOKEN", "test-internal-token")
 os.environ.setdefault("ANOTAAI_IFOOD_WEBHOOK_SECRET", "test-ifood-secret")
 os.environ.setdefault("ANOTAAI_META_APP_SECRET", "test-meta-app-secret")
 os.environ.setdefault("ANOTAAI_META_VERIFY_TOKEN", "test-meta-verify-token")
+# Evita exigir um Redis real no CI: rate limit fica em memória durante os testes,
+# só usa o storage distribuído (item 8 do plano de próxima onda) em produção.
+os.environ.setdefault("ANOTAAI_RATE_LIMIT_STORAGE_URI", "memory://")
 
 import uuid
 

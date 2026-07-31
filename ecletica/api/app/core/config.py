@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
     internal_api_token: str = Field(alias="INTERNAL_API_TOKEN")
+    rate_limit_storage_uri: str = "redis://redis:6379/2"
     cors_allowed_origins: str = "http://localhost:3000,http://localhost:5173"
 
     model_config = SettingsConfigDict(env_prefix="ECLETICA_")
