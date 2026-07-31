@@ -104,6 +104,7 @@ def health_ready(session: Session = Depends(get_session)) -> dict:
 
 app.include_router(auth.router)
 app.include_router(comandas.router)
+app.include_router(comandas.router_v1)
 app.include_router(integracoes.router)
 app.include_router(kds.router)
 app.include_router(relatorios.router)

@@ -1,14 +1,15 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, select
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlmodel import Session, func, select
 
 from ..core.db import get_session
 from ..core.deps import get_current_loja_id, require_roles, verify_internal_token
 from ..models import Cliente, PapelUsuario
-from ..schemas import ClienteCreate, ClienteOut, CreditarPontosRequest
+from ..schemas import ClienteCreate, ClienteOut, CreditarPontosRequest, PaginatedResponse
 
 router = APIRouter(prefix="/clientes", tags=["clientes"])
+router_v1 = APIRouter(prefix="/v1/clientes", tags=["clientes"])
 
 
 @router.get("", response_model=list[ClienteOut])
@@ -17,6 +18,30 @@ def listar_clientes(
     id_loja: uuid.UUID = Depends(get_current_loja_id),
 ) -> list[Cliente]:
     return list(session.exec(select(Cliente).where(Cliente.id_loja == id_loja)).all())
+
+
+@router_v1.get("", response_model=PaginatedResponse[ClienteOut])
+def listar_clientes_v1(
+    limit: int = Query(default=50, le=200),
+    offset: int = Query(default=0, ge=0),
+    session: Session = Depends(get_session),
+    id_loja: uuid.UUID = Depends(get_current_loja_id),
+) -> PaginatedResponse[ClienteOut]:
+    """Item 7 do plano de próxima onda: versão paginada de GET /clientes.
+    Vive em /v1 porque o envelope {items, total, limit, offset} é
+    incompatível com o array puro que GET /clientes devolve hoje —
+    manter a rota antiga intacta evita quebrar quem já a consome."""
+    filtro = Cliente.id_loja == id_loja
+    total = session.exec(select(func.count()).select_from(Cliente).where(filtro)).one()
+    itens = session.exec(
+        select(Cliente).where(filtro).order_by(Cliente.nome).limit(limit).offset(offset)
+    ).all()
+    return PaginatedResponse[ClienteOut](
+        items=[ClienteOut.model_validate(c) for c in itens],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.post("", response_model=ClienteOut, status_code=201)

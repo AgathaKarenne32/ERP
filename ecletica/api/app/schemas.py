@@ -1,9 +1,19 @@
 import uuid
 from datetime import datetime
+from typing import Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict, EmailStr
 
 from .models import ProvedorExterno, TipoMovimentoEstoque
+
+T = TypeVar("T")
+
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    items: list[T]
+    total: int
+    limit: int
+    offset: int
 
 
 class LoginRequest(BaseModel):
