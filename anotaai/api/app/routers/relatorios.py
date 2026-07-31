@@ -41,7 +41,9 @@ def relatorio_vendas(
     """RF10: total vendido, quantidade de comandas pagas e ticket médio no
     período. Considera só comandas PAGA — nunca ABERTA ou CANCELADA."""
     comandas = _comandas_pagas_no_periodo(session, id_loja, inicio, fim)
-    total = sum(c.valor_total for c in comandas)
+    # Valor líquido (após desconto) - precisa bater com o que de fato entrou
+    # no caixa em fechar_comanda, não o valor de tabela dos itens.
+    total = sum(c.valor_total - c.desconto_total for c in comandas)
     quantidade = len(comandas)
     ticket_medio = total / quantidade if quantidade else 0.0
 
@@ -52,7 +54,7 @@ def relatorio_vendas(
         agregado = agregados.setdefault(
             comanda.forma_pagamento, {"valor_total": 0.0, "quantidade_comandas": 0}
         )
-        agregado["valor_total"] += comanda.valor_total
+        agregado["valor_total"] += comanda.valor_total - comanda.desconto_total
         agregado["quantidade_comandas"] += 1
 
     por_forma_pagamento = [

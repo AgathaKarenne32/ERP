@@ -94,6 +94,7 @@ class InsumoCreate(BaseModel):
     unidade_medida: str
     custo_unitario: float
     qtd_estoque: float = 0
+    estoque_minimo: float = 0
 
 
 class InsumoOut(BaseModel):
@@ -104,6 +105,7 @@ class InsumoOut(BaseModel):
     unidade_medida: str
     custo_unitario: float
     qtd_estoque: float
+    estoque_minimo: float
 
 
 class FichaTecnicaItemCreate(BaseModel):

@@ -20,6 +20,7 @@ from ..models import (
 from ..schemas import (
     ComandaCancelarRequest,
     ComandaCreate,
+    ComandaDescontoRequest,
     ComandaFecharRequest,
     ComandaOut,
     ComandaVincularClienteRequest,
@@ -199,6 +200,37 @@ def vincular_cliente(
     return comanda
 
 
+@router.patch("/{comanda_id}/desconto", response_model=ComandaOut)
+def aplicar_desconto(
+    comanda_id: uuid.UUID,
+    payload: ComandaDescontoRequest,
+    session: Session = Depends(get_session),
+    id_loja: uuid.UUID = Depends(get_current_loja_id),
+    _operador=Depends(
+        require_roles(PapelOperador.CAIXA, PapelOperador.ADMIN, PapelOperador.GERENTE)
+    ),
+) -> Comanda:
+    """RN04 preservada: desconto fica num campo separado a nível de comanda,
+    nunca editando ItemComanda.preco_aplicado (que precisa continuar
+    imutável como snapshot histórico). Papel restrito - GARCOM não pode
+    dar desconto livre, é risco de fraude interna."""
+    comanda = session.get(Comanda, comanda_id)
+    if not comanda or comanda.id_loja != id_loja:
+        raise HTTPException(status_code=404, detail="Comanda não encontrada")
+    if comanda.status != StatusComanda.ABERTA:
+        raise HTTPException(status_code=409, detail="Só é possível aplicar desconto numa comanda aberta")
+    if payload.desconto_total > comanda.valor_total:
+        raise HTTPException(
+            status_code=400, detail="Desconto não pode ser maior que o valor total da comanda"
+        )
+
+    comanda.desconto_total = payload.desconto_total
+    session.add(comanda)
+    session.commit()
+    session.refresh(comanda)
+    return comanda
+
+
 @router.post("/{comanda_id}/itens", response_model=ItemComandaOut, status_code=201)
 def adicionar_item(
     comanda_id: uuid.UUID,
@@ -360,15 +392,17 @@ def fechar_comanda(
         {"id_produto": str(item.id_produto), "quantidade": item.quantidade}
         for item in itens
     ]
+    valor_liquido = comanda.valor_total - comanda.desconto_total
 
     # RN01/RN02: dá baixa no estoque na ecletica-api antes de confirmar o pagamento,
     # e soma o valor da venda no caixa aberto (se houver). Se faltar insumo, isto
-    # levanta HTTPException(409) e a comanda não fecha.
+    # levanta HTTPException(409) e a comanda não fecha. Usa o valor líquido (após
+    # desconto) - o caixa reflete o que realmente entrou, não o valor de tabela.
     solicitar_baixa_estoque(
         id_loja=id_loja,
         itens=itens_baixa,
         referencia=str(comanda_id),
-        valor_total=comanda.valor_total,
+        valor_total=valor_liquido,
     )
 
     comanda.status = StatusComanda.PAGA
@@ -384,7 +418,7 @@ def fechar_comanda(
         solicitar_credito_fidelidade(
             id_loja=id_loja,
             id_cliente=comanda.id_cliente,
-            valor_gasto=comanda.valor_total,
+            valor_gasto=valor_liquido,
             referencia=str(comanda_id),
         )
 

@@ -95,6 +95,7 @@ class Comanda(SQLModel, table=True):
     identificador: str  # Ex: 'MESA 04', 'SENHA 102'
     status: StatusComanda = Field(default=StatusComanda.ABERTA)
     valor_total: float = Field(default=0)
+    desconto_total: float = Field(default=0)
     aberta_em: datetime = Field(default_factory=_now)
     fechada_em: datetime | None = None
     motivo_cancelamento: str | None = None
