@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlmodel import Session, select
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlmodel import Session, func, select
 
 from ..core.db import get_session
 from ..core.deps import get_current_loja_id, require_roles, verify_internal_token
@@ -26,11 +26,13 @@ from ..schemas import (
     IngestaoExternaRequest,
     ItemComandaCreate,
     ItemComandaOut,
+    PaginatedResponse,
     TicketProducaoOut,
     TransferirItensRequest,
 )
 
 router = APIRouter(prefix="/comandas", tags=["comandas"])
+router_v1 = APIRouter(prefix="/v1/comandas", tags=["comandas"])
 
 
 @router.post("", response_model=ComandaOut, status_code=201)
@@ -62,6 +64,33 @@ def listar_comandas(
     ),
 ) -> list[Comanda]:
     return list(session.exec(select(Comanda).where(Comanda.id_loja == id_loja)).all())
+
+
+@router_v1.get("", response_model=PaginatedResponse[ComandaOut])
+def listar_comandas_v1(
+    limit: int = Query(default=50, le=200),
+    offset: int = Query(default=0, ge=0),
+    session: Session = Depends(get_session),
+    id_loja: uuid.UUID = Depends(get_current_loja_id),
+    _operador=Depends(
+        require_roles(PapelOperador.ADMIN, PapelOperador.GERENTE, PapelOperador.CAIXA, PapelOperador.GARCOM)
+    ),
+) -> PaginatedResponse[ComandaOut]:
+    """Item 7 do plano de próxima onda: versão paginada de GET /comandas.
+    Vive em /v1 porque o envelope {items, total, limit, offset} é
+    incompatível com o array puro que GET /comandas devolve hoje —
+    manter a rota antiga intacta evita quebrar quem já a consome."""
+    filtro = Comanda.id_loja == id_loja
+    total = session.exec(select(func.count()).select_from(Comanda).where(filtro)).one()
+    itens = session.exec(
+        select(Comanda).where(filtro).order_by(Comanda.aberta_em.desc()).limit(limit).offset(offset)
+    ).all()
+    return PaginatedResponse[ComandaOut](
+        items=[ComandaOut.model_validate(c) for c in itens],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.post(
